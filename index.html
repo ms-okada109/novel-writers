@@ -658,6 +658,22 @@ body.focus-mode #focus-escape { display: block; }
 /* Drag-over */
 .chapter-item.drag-over { background: rgba(196,118,58,0.15); }
 
+/* ── CONSTELLATION ── */
+.const-mode-btn {
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  border: 1px solid var(--paper-deep);
+  background: var(--paper);
+  color: var(--ink-light);
+  transition: all 0.15s;
+  letter-spacing: 0.05em;
+}
+.const-mode-btn:hover { border-color: var(--accent-light); color: var(--accent-light); }
+.const-mode-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
 /* ── PHRASE DRAWER ── */
 #panel-editor {
   flex-direction: row;
@@ -1010,9 +1026,11 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
     <div class="nav-item" data-panel="stamp" onclick="switchPanel('stamp',this)">
       <span class="icon">📅</span><span class="hide-collapsed">スタンプ帳</span>
     </div>
+    <div class="nav-item" data-panel="constellation" onclick="switchPanel('constellation',this)">
+      <span class="icon">✦</span><span class="hide-collapsed">知識の星座</span>
+    </div>
   </div>
 </nav>
-
 <!-- MAIN -->
 <div id="main">
   <div id="topbar">
@@ -1217,7 +1235,77 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
   </div>
 </div>
 
-<!-- スタンプポップアップ -->
+<!-- 知識の星座 -->
+<div class="panel notes-panel" id="panel-constellation">
+  <div class="notes-header">✦ 知識の星座</div>
+  <p style="font-size:12px;color:var(--ink-light);opacity:0.6;line-height:1.8;margin-bottom:4px;">
+    フレーズ・アイデア・人物ノートをAIが横断分析し、意味的な繋がりを発見します。
+  </p>
+
+  <!-- 分析モード選択 -->
+  <div id="constellation-modes" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+    <button class="const-mode-btn active" data-mode="connections" onclick="selectConstMode('connections',this)">🔗 繋がりを発見</button>
+    <button class="const-mode-btn" data-mode="brief" onclick="selectConstMode('brief',this)">📋 章のブリーフィング</button>
+    <button class="const-mode-btn" data-mode="suggest" onclick="selectConstMode('suggest',this)">💡 執筆中に提案</button>
+    <button class="const-mode-btn" data-mode="aozora" onclick="selectConstMode('aozora',this)">📚 青空文庫から引用</button>
+  </div>
+
+  <!-- 繋がりを発見モード -->
+  <div id="const-mode-connections">
+    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;">全ての蓄積データを分析して、意味的な繋がりを見つけます。</p>
+    <button class="notes-add-btn" onclick="runConstellation('connections')" id="const-btn-connections">✦ 分析する</button>
+  </div>
+
+  <!-- 章のブリーフィングモード -->
+  <div id="const-mode-brief" style="display:none;">
+    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;">章のテーマ・登場人物を入力すると、関連する蓄積データをまとめます。</p>
+    <textarea id="const-brief-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:80px;outline:none;" placeholder="例：第3章。主人公の孤独と雨の情景。登場人物：田中、山田。"></textarea>
+    <button class="notes-add-btn" style="margin-top:8px;" onclick="runConstellation('brief')" id="const-btn-brief">📋 ブリーフィングを作成</button>
+  </div>
+
+  <!-- 執筆中に提案モード -->
+  <div id="const-mode-suggest" style="display:none;">
+    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;">今書いているシーンのキーワードを入力すると、使えそうな素材を提案します。</p>
+    <textarea id="const-suggest-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:80px;outline:none;" placeholder="例：夕暮れ、別れ、主人公が駅のホームに立っている"></textarea>
+    <button class="notes-add-btn" style="margin-top:8px;" onclick="runConstellation('suggest')" id="const-btn-suggest">💡 素材を提案してもらう</button>
+  </div>
+
+  <!-- 青空文庫モード -->
+  <div id="const-mode-aozora" style="display:none;">
+    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;line-height:1.8;">
+      青空文庫のテキストファイル（.txt）を読み込み、シーンに合う原文をそのまま抜粋します。<br>
+      <a href="https://www.aozora.gr.jp" target="_blank" style="color:var(--accent-light);">青空文庫 →</a>
+    </p>
+
+    <!-- 読み込み済み作品リスト -->
+    <div id="aozora-book-list" style="margin-bottom:10px;"></div>
+
+    <!-- ファイル読み込み -->
+    <label class="notes-add-btn" style="cursor:pointer;display:inline-block;">
+      📂 テキストファイルを読み込む
+      <input type="file" accept=".txt" multiple style="display:none" onchange="loadAozoraFiles(event)">
+    </label>
+
+    <!-- キーワード入力 -->
+    <div style="margin-top:12px;">
+      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">シーンのキーワード</div>
+      <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:60px;outline:none;" placeholder="例：夕暮れ、孤独、雨"></textarea>
+    </div>
+
+    <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraSearch()" id="const-btn-aozora">📚 原文を探す</button>
+  </div>
+
+  <!-- 結果表示エリア -->
+  <div id="constellation-result" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:11px;letter-spacing:0.15em;color:var(--ink-light);opacity:0.5;">── 結果 ──</div>
+      <button onclick="document.getElementById('constellation-result').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-light);opacity:0.4;">✕ 閉じる</button>
+    </div>
+    <div id="constellation-result-body" style="font-size:13px;line-height:1.9;color:var(--ink);white-space:pre-wrap;font-family:'Shippori Mincho',serif;"></div>
+  </div>
+</div>
+
+
 <div id="stamp-modal-overlay">
   <div class="modal" style="max-width:340px;text-align:center;">
     <div id="stamp-popup-inner">
@@ -1578,7 +1666,7 @@ function switchPanel(name, el) {
   document.getElementById('panel-' + name).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
-  const titles = { editor:'本編エディタ', ideas:'アイデア帳', characters:'人物ノート', botsu:'ボツコーナー', stamp:'スタンプ帳', search:'検索結果', phrases:'フレーズ蒐集帖' };
+  const titles = { editor:'本編エディタ', ideas:'アイデア帳', characters:'人物ノート', botsu:'ボツコーナー', stamp:'スタンプ帳', search:'検索結果', phrases:'フレーズ蒐集帖', constellation:'知識の星座' };
   document.getElementById('panel-title').textContent = titles[name] || name;
   if (name === 'stamp') { updatePet(); renderStampGrid(); updateStats(); }
   if (name === 'phrases') { renderPhrases(); }
@@ -2282,6 +2370,234 @@ function removePhraseTag(id, tag) {
 
 function updatePhrase(id, f, v) { const x=(state.phrases||[]).find(p=>p.id===id); if(x){x[f]=v;saveState();} }
 function deletePhrase(id) { state.phrases=(state.phrases||[]).filter(x=>x.id!==id); saveState();renderPhrases(); }
+
+// ═══════════════════════════════════════════
+// 知識の星座（AI横断分析）
+// ═══════════════════════════════════════════
+let currentConstMode = 'connections';
+
+function selectConstMode(mode, el) {
+  currentConstMode = mode;
+  document.querySelectorAll('.const-mode-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  ['connections','brief','suggest','aozora'].forEach(m => {
+    document.getElementById(`const-mode-${m}`).style.display = m === mode ? 'block' : 'none';
+  });
+  document.getElementById('constellation-result').style.display = 'none';
+  if (mode === 'aozora') renderAozoraBookList();
+}
+
+function buildDataSummary() {
+  // フレーズ蒐集帖
+  const phrases = (state.phrases || []).map(p =>
+    `【フレーズ】${p.title ? `「${p.title}」` : ''} "${p.body}" ${(p.tags||[]).length ? `タグ:${p.tags.join(',')}` : ''}`
+  ).join('\n');
+
+  // アイデア帳
+  const ideas = state.ideas.map(i =>
+    `【アイデア】${i.title} — ${i.body} ${(i.tags||[]).length ? `タグ:${i.tags.join(',')}` : ''}`
+  ).join('\n');
+
+  // 人物ノート
+  const characters = state.characters.map(c =>
+    `【人物】${c.emoji||''}${c.name}（${c.role||''}） ${c.memo||''}`
+  ).join('\n');
+
+  // 本編の章タイトル
+  const chapters = state.chapters.map(c => `【章】${c.title}`).join('\n');
+
+  return [chapters, characters, phrases, ideas].filter(Boolean).join('\n\n');
+}
+
+async function runConstellation(mode) {
+  const apiKey = document.getElementById('api-key-input').value.trim();
+  if (!apiKey) { toast('添削モーダルにAPIキーを入力してください'); return; }
+
+  const btnId = `const-btn-${mode}`;
+  const btn = document.getElementById(btnId);
+  btn.disabled = true;
+  btn.textContent = '✦ 分析中…';
+
+  const data = buildDataSummary();
+  if (!data.trim()) { toast('データがありません。フレーズ・アイデア・人物を追加してください'); btn.disabled=false; btn.textContent='✦ 分析する'; return; }
+
+  let prompt = '';
+
+  if (mode === 'connections') {
+    prompt = `あなたは優れた文学編集者です。以下は小説家の蓄積データです。
+
+${data}
+
+このデータを横断的に分析し、以下を教えてください：
+1. 意味的・テーマ的に繋がっているフレーズとアイデアの組み合わせ（3〜5組）
+2. 人物とフレーズの相性（この人物にはこのフレーズが合う、など）
+3. まだ気づいていない可能性のある繋がりや示唆
+
+各繋がりに対して「なぜ繋がるのか」の理由も添えてください。漱石的な深みを意識した分析をお願いします。`;
+
+  } else if (mode === 'brief') {
+    const input = document.getElementById('const-brief-input').value.trim();
+    if (!input) { toast('章のテーマを入力してください'); btn.disabled=false; btn.textContent='📋 ブリーフィングを作成'; return; }
+    prompt = `あなたは優れた文学編集者です。以下は小説家の蓄積データです。
+
+${data}
+
+この小説家が以下の章を書こうとしています：
+「${input}」
+
+この章に関連する蓄積データを全て洗い出し、以下の形でブリーフィングを作成してください：
+1. 使えそうなフレーズ（理由付きで）
+2. 活かせるアイデア
+3. 登場人物との関連
+4. この章を書く上でのヒント・示唆
+
+漱石の視点で、深みのある章にするためのアドバイスも添えてください。`;
+
+  } else if (mode === 'suggest') {
+    const input = document.getElementById('const-suggest-input').value.trim();
+    if (!input) { toast('シーンのキーワードを入力してください'); btn.disabled=false; btn.textContent='💡 素材を提案してもらう'; return; }
+    prompt = `あなたは優れた文学編集者です。以下は小説家の蓄積データです。
+
+${data}
+
+今この小説家は以下のシーンを書こうとしています：
+「${input}」
+
+蓄積データの中から、このシーンで使えそうな素材を提案してください：
+1. ぴったりのフレーズ（そのまま使える or アレンジして使える）
+2. このシーンを豊かにするアイデア
+3. このシーンに登場すると効果的な人物・関係性
+4. 漱石ならこのシーンをどう書くか、一言アドバイス`;
+  }
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 2000,
+        messages: [{ role:'user', content: prompt }]
+      })
+    });
+    const data2 = await res.json();
+    if (!res.ok) throw new Error(data2.error?.message || '分析失敗');
+
+    const result = data2.content[0]?.text || '';
+    const resultEl = document.getElementById('constellation-result');
+    const bodyEl = document.getElementById('constellation-result-body');
+    bodyEl.textContent = result;
+    resultEl.style.display = 'block';
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch(e) {
+    toast('⚠ ' + (e.message || '分析に失敗しました'));
+  }
+
+  btn.disabled = false;
+  btn.textContent = mode === 'connections' ? '✦ 再分析する' : mode === 'brief' ? '📋 再作成する' : '💡 再提案する';
+}
+
+// ═══════════════════════════════════════════
+// 青空文庫 原文引用
+// ═══════════════════════════════════════════
+let aozoraBooks = [];
+
+function loadAozoraFiles(e) {
+  const files = [...e.target.files];
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const text = ev.target.result;
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      const title = lines[0] || file.name.replace(/\.txt$/, '');
+      const author = lines[1] || '';
+      const existing = aozoraBooks.findIndex(b => b.title === title);
+      if (existing >= 0) aozoraBooks[existing] = { title, author, text };
+      else aozoraBooks.push({ title, author, text });
+      renderAozoraBookList();
+      toast(`📚 「${title}」を読み込みました`);
+    };
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+
+function renderAozoraBookList() {
+  const el = document.getElementById('aozora-book-list');
+  if (!aozoraBooks.length) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--ink-light);opacity:0.4;margin-bottom:4px;">まだ作品が読み込まれていません</div>';
+    return;
+  }
+  el.innerHTML = aozoraBooks.map((b, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:var(--paper);border:1px solid var(--paper-deep);border-radius:6px;margin-bottom:4px;font-size:12px;">
+      <span>📖 <b>${esc(b.title)}</b>${b.author ? ` ／ ${esc(b.author)}` : ''}</span>
+      <button onclick="removeAozoraBook(${i})" style="background:none;border:none;cursor:pointer;font-size:11px;opacity:0.4;color:var(--ink);">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeAozoraBook(i) {
+  aozoraBooks.splice(i, 1);
+  renderAozoraBookList();
+}
+
+async function runAozoraSearch() {
+  if (!aozoraBooks.length) { toast('先にテキストファイルを読み込んでください'); return; }
+  const keyword = document.getElementById('aozora-keyword-input').value.trim();
+  if (!keyword) { toast('キーワードを入力してください'); return; }
+  const apiKey = document.getElementById('api-key-input').value.trim();
+  if (!apiKey) { toast('添削モーダルにAPIキーを入力してください'); return; }
+
+  const btn = document.getElementById('const-btn-aozora');
+  btn.disabled = true; btn.textContent = '📚 探索中…';
+
+  // キーワードに関連する文を各作品から抽出してAPIに送る
+  const keywords = keyword.split(/[、,\s]+/).filter(Boolean);
+  const excerpts = aozoraBooks.map(book => {
+    const sentences = book.text.split(/[。！？]/).map(s => s.trim()).filter(s => s.length > 8);
+    const matched = sentences.filter(s => keywords.some(k => s.includes(k))).slice(0, 30);
+    const fallback = matched.length < 5 ? sentences.sort(() => Math.random() - 0.5).slice(0, 20) : [];
+    return `【${book.title}／${book.author}】\n${[...matched, ...fallback].join('。')}。`;
+  }).join('\n\n---\n\n');
+
+  const prompt = `以下は青空文庫の原文からの抜粋です。
+
+${excerpts}
+
+---
+
+「${keyword}」というシーン・雰囲気・感情に合う原文フレーズを各作品から2〜3箇所ずつ抜き出してください。
+
+【厳守ルール】
+・原文を一字一句そのまま引用すること（絶対に書き換えない・言い換えない）
+・AIによる創作は一切しない
+・なぜ合うか一言だけ添える
+
+形式：
+📖『作品名』／著者名
+「原文そのまま」
+→ 一言コメント
+`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:'claude-opus-4-5', max_tokens:2000, messages:[{role:'user',content:prompt}] })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || '失敗');
+    const result = data.content[0]?.text || '';
+    document.getElementById('constellation-result-body').textContent = result;
+    document.getElementById('constellation-result').style.display = 'block';
+    document.getElementById('constellation-result').scrollIntoView({ behavior:'smooth', block:'start' });
+  } catch(e) {
+    toast('⚠ ' + (e.message || '検索に失敗しました'));
+  }
+  btn.disabled = false; btn.textContent = '📚 再検索する';
+}
+
+
 
 
 // ═══════════════════════════════════════════
