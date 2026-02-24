@@ -213,6 +213,24 @@ body {
   height: 50px;
   flex-shrink: 0;
   gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#topbar::-webkit-scrollbar { display: none; }
+
+/* スマホ：トップバーをコンパクトに */
+@media (max-width: 600px) {
+  #topbar { padding: 0 10px; gap: 6px; }
+  #panel-title { font-size: 12px; letter-spacing: 0.1em; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
+  #search-box { max-width: 100px; font-size: 11px; padding: 4px 8px; }
+  .top-btn { padding: 4px 8px; font-size: 11px; }
+  .top-btn.icon-btn { padding: 4px 6px; font-size: 12px; }
+  #char-count { font-size: 11px; }
+  #char-goal-info { display: none; }
+  #font-slider-wrap { display: none; }
+  #save-indicator { display: none; }
+  #gist-status { font-size: 10px !important; }
 }
 #panel-title { font-family: 'Shippori Mincho', serif; font-size: 15px; color: var(--ink-light); letter-spacing: 0.2em; white-space: nowrap; }
 #search-box {
