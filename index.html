@@ -2635,10 +2635,9 @@ async function runAozoraAiSearch() {
       .split(/[。！？]/)
       .map(s => s.trim())
       .filter(s => s.length > 15 && s.length < 150);
-    // ランダムに最大80文サンプリング
-    const sample = sentences.length > 80
-      ? sentences.sort(() => Math.random() - 0.5).slice(0, 80)
-      : sentences;
+    // 作品全体から均等に80文サンプリング
+    const step = Math.max(1, Math.floor(sentences.length / 80));
+    const sample = sentences.filter((_, i) => i % step === 0).slice(0, 80);
     return '【' + book.title + '／' + book.author + '】\n' + sample.join('。') + '。';
   }).join('\n\n---\n\n').slice(0, 8000);
 
