@@ -1670,7 +1670,7 @@ function loadChapter(id) {
   const ch = state.chapters.find(c => c.id === id);
   if (!ch) return;
   state.activeChapter = id;
-  document.getElementById('editor').textContent = ch.content;
+  document.getElementById('editor').innerHTML = ch.content || '';
   updateCharCount();
   renderChapterList();
   // ドロワーが開いていたら更新
@@ -1695,7 +1695,7 @@ let editorSnapshot = 0;
 function onEditorInput() {
   const ch = state.chapters.find(c => c.id === state.activeChapter);
   if (ch) {
-    ch.content = document.getElementById('editor').textContent;
+    ch.content = document.getElementById('editor').innerHTML;
     saveState();
   }
   updateCharCount();
