@@ -2643,21 +2643,10 @@ async function runAozoraAiSearch() {
       .split(/[。！？]/)
       .map(s => s.trim())
       .filter(s => s.length > 15 && s.length < 150);
-    // 章ごとに分割して各章から均等サンプリング
-    const chapterBlocks = book.text.split(/\n(?:[一二三四五六七八九十百千]+|[0-9０-９]+)\n/).filter(b => b.trim().length > 50);
-    const blocksToUse = chapterBlocks.length > 1 ? chapterBlocks : [book.text];
-    const perBlock = Math.max(1, Math.ceil(80 / blocksToUse.length));
-    const sample = [];
-    blocksToUse.forEach(block => {
-      const blockSents = block.split(/[。！？]/).map(s => s.trim()).filter(s => s.length > 15 && s.length < 150);
-      const step = Math.max(1, Math.floor(blockSents.length / perBlock));
-      for (let i = 0; i < blockSents.length && sample.length < 80; i += step) {
-        const slice = blockSents.slice(i, i + step);
-        sample.push(slice[Math.floor(Math.random() * slice.length)]);
-      }
-    });
-    return '【' + book.title + '／' + book.author + '】\n' + sample.join('。') + '。';
-  }).join('\n\n---\n\n').slice(0, 8000);
+    // 全文をそのまま渡す（文字数は後で制限）
+    const sents = book.text.split(/[。！？]/).map(s => s.trim()).filter(s => s.length > 10 && s.length < 200);
+    return '【' + book.title + '／' + book.author + '】\n' + sents.join('。') + '。';
+  }).join('\n\n---\n\n').slice(0, 20000);
 
   const prompt = '以下は青空文庫の原文抜粋です。\n\n' + excerpts + '\n\n---\n\n「' + instruction + '」に当てはまる箇所を原文からそのまま抜き出してください。\n\n【厳守】\n・原文を一字一句そのまま引用（書き換え・要約禁止）\n・各作品から2〜3箇所\n\n形式：\n📖『作品名』\n「原文」\n→ なぜ該当するか一言';
 
@@ -2665,7 +2654,7 @@ async function runAozoraAiSearch() {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model:'claude-opus-4-5', max_tokens:1500, messages:[{role:'user',content:prompt}] })
+      body: JSON.stringify({ model:'claude-opus-4-5', max_tokens:3000, messages:[{role:'user',content:prompt}] })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.message || '失敗');
