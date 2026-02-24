@@ -354,8 +354,9 @@ body.focus-mode #editor-wrapper { padding: 60px 80px; }
 #panel-constellation {
   padding: 32px 44px 32px 60px;
 }
-@media (max-width: 600px) {
-  #panel-constellation { padding: 20px 16px 20px 16px; }
+@media (max-width: 700px) {
+  #panel-constellation { padding: 20px 16px 20px 20px; }
+  .notes-panel { padding: 20px 16px; }
 }
 .notes-header {
   font-family: 'Shippori Mincho', serif;
@@ -679,18 +680,7 @@ body.focus-mode #focus-escape { display: block; }
 }
 .const-mode-btn:hover { border-color: var(--accent-light); color: var(--accent-light); }
 .const-mode-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
-.aozora-style-btn {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-family: 'Noto Sans JP', sans-serif;
-  cursor: pointer;
-  border: 1px solid var(--paper-deep);
-  background: var(--paper);
-  color: var(--ink-light);
-  transition: all 0.15s;
-}
-.aozora-style-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
 
 /* ── PHRASE DRAWER ── */
 #panel-editor {
@@ -1288,30 +1278,22 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
     <button class="notes-add-btn" style="margin-top:8px;" onclick="runConstellation('suggest')" id="const-btn-suggest">💡 素材を提案してもらう</button>
   </div>
 
+
   <!-- 青空文庫モード -->
   <div id="const-mode-aozora" style="display:none;">
     <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;line-height:1.8;">
-      青空文庫のテキストファイル（.txt）を読み込み、シーンに合う原文をそのまま抜粋します。<br>
+      青空文庫のテキストファイル（.txt）を読み込み、キーワードに合う原文をそのまま抜粋します。<br>
       <a href="https://www.aozora.gr.jp" target="_blank" style="color:var(--accent-light);">青空文庫 →</a>
     </p>
-
-    <!-- 読み込み済み作品リスト -->
     <div id="aozora-book-list" style="margin-bottom:10px;"></div>
-
-    <!-- ファイル読み込み -->
-    <label class="notes-add-btn" style="cursor:pointer;display:inline-block;">
+    <label class="notes-add-btn" style="cursor:pointer;display:inline-block;margin-bottom:12px;">
       📂 テキストファイルを読み込む
       <input type="file" accept=".txt" multiple style="display:none" onchange="loadAozoraFiles(event)">
     </label>
-
-    <!-- キーワード入力 -->
-    <div style="margin-top:12px;">
-      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">検索キーワード（複数入力で AND 絞り込み）</div>
-      <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:60px;outline:none;" placeholder="例：死、夜　← 両方含む文だけ抽出"></textarea>
-    </div>
-
+    <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">キーワード（複数入力でAND絞り込み）</div>
+    <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:60px;outline:none;" placeholder="例：死、夜　← 両方含む文だけ抽出"></textarea>
     <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraSearch()" id="const-btn-aozora">📚 原文を探す</button>
-    <button onclick="debugAozora()" style="margin-top:4px;background:none;border:1px dashed var(--paper-deep);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--ink-light);width:100%;">🔍 デバッグ（テキスト確認）</button>
+    <button onclick="debugAozora()" style="margin-top:4px;background:none;border:1px dashed var(--paper-deep);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--ink-light);opacity:0.5;width:100%;">🔍 デバッグ確認</button>
   </div>
 
   <!-- 結果表示エリア -->
@@ -2517,6 +2499,7 @@ ${data}
   btn.textContent = mode === 'connections' ? '✦ 再分析する' : mode === 'brief' ? '📋 再作成する' : '💡 再提案する';
 }
 
+
 // ═══════════════════════════════════════════
 // 青空文庫 原文引用
 // ═══════════════════════════════════════════
@@ -2528,7 +2511,6 @@ function loadAozoraFiles(e) {
     const reader = new FileReader();
     reader.onload = ev => {
       let text = ev.target.result;
-      // 青空文庫の記法を除去
       text = text
         .replace(/《[^》]*》/g, '')
         .replace(/｜/g, '')
@@ -2542,25 +2524,25 @@ function loadAozoraFiles(e) {
       if (existing >= 0) aozoraBooks[existing] = { title, author, text };
       else aozoraBooks.push({ title, author, text });
       renderAozoraBookList();
-      toast(`📚 「${title}」を読み込みました`);
+      toast('📚 「' + title + '」を読み込みました');
     };
-    // 青空文庫はShift-JIS
     reader.readAsText(file, 'Shift_JIS');
   });
 }
 
 function renderAozoraBookList() {
   const el = document.getElementById('aozora-book-list');
+  if (!el) return;
   if (!aozoraBooks.length) {
     el.innerHTML = '<div style="font-size:11px;color:var(--ink-light);opacity:0.4;margin-bottom:4px;">まだ作品が読み込まれていません</div>';
     return;
   }
-  el.innerHTML = aozoraBooks.map((b, i) => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:var(--paper);border:1px solid var(--paper-deep);border-radius:6px;margin-bottom:4px;font-size:12px;">
-      <span>📖 <b>${esc(b.title)}</b>${b.author ? ` ／ ${esc(b.author)}` : ''}</span>
-      <button onclick="removeAozoraBook(${i})" style="background:none;border:none;cursor:pointer;font-size:11px;opacity:0.4;color:var(--ink);">✕</button>
-    </div>
-  `).join('');
+  el.innerHTML = aozoraBooks.map((b, i) =>
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:var(--paper);border:1px solid var(--paper-deep);border-radius:6px;margin-bottom:4px;font-size:12px;">' +
+    '<span>📖 <b>' + esc(b.title) + '</b>' + (b.author ? ' ／ ' + esc(b.author) : '') + '</span>' +
+    '<button onclick="removeAozoraBook(' + i + ')" style="background:none;border:none;cursor:pointer;font-size:11px;opacity:0.4;color:var(--ink);">✕</button>' +
+    '</div>'
+  ).join('');
 }
 
 function removeAozoraBook(i) {
@@ -2571,15 +2553,12 @@ function removeAozoraBook(i) {
 function debugAozora() {
   if (!aozoraBooks.length) { toast('ファイルを読み込んでください'); return; }
   const book = aozoraBooks[0];
-  // 最初の500字と「死」を含む文を表示
-  const preview = book.text.slice(0, 500);
+  const preview = book.text.slice(0, 300);
   const sentences = book.text.split(/[。！？]/).filter(s => s.includes('死')).slice(0, 3);
-  const result = `【タイトル】${book.title}\n【著者】${book.author}\n【文字数】${book.text.length}字\n\n【冒頭500字】\n${preview}\n\n【「死」を含む文（最初の3つ）】\n${sentences.join('。\n') || '見つからない'}`;
+  const result = '【タイトル】' + book.title + '\n【著者】' + book.author + '\n【文字数】' + book.text.length + '字\n\n【冒頭300字】\n' + preview + '\n\n【「死」を含む文（最初の3つ）】\n' + (sentences.join('。\n') || '見つからない');
   document.getElementById('constellation-result-body').textContent = result;
   document.getElementById('constellation-result').style.display = 'block';
 }
-
-function toggleStyleBtn(el) { el.classList.toggle('active'); }
 
 async function runAozoraSearch() {
   if (!aozoraBooks.length) { toast('先にテキストファイルを読み込んでください'); return; }
@@ -2590,8 +2569,8 @@ async function runAozoraSearch() {
   btn.disabled = true; btn.textContent = '📚 検索中…';
 
   const keywords = keyword.split(/[、,\s]+/).filter(Boolean);
-  let allResults = [];
 
+  let allResults = [];
   aozoraBooks.forEach(book => {
     const sentences = book.text
       .split(/[。！？]/)
@@ -2603,7 +2582,7 @@ async function runAozoraSearch() {
 
   if (!allResults.length) {
     document.getElementById('constellation-result-body').textContent =
-      `「${keyword}」を含む文が見つかりませんでした。\nキーワードを減らすか変えてみてください。`;
+      '「' + keyword + '」を含む文が見つかりませんでした。\nキーワードを減らすか変えてみてください。';
     document.getElementById('constellation-result').style.display = 'block';
     btn.disabled = false; btn.textContent = '📚 原文を探す';
     return;
@@ -2613,14 +2592,15 @@ async function runAozoraSearch() {
     ? allResults.sort(() => Math.random() - 0.5).slice(0, 30)
     : allResults;
 
-  const result = `「${keyword}」の検索結果：${allResults.length}件（表示：${sample.length}件）\n\n` +
-    sample.map(r => `📖『${r.title}』\n「${r.sentence}」`).join('\n\n');
+  const result = '「' + keyword + '」の検索結果：' + allResults.length + '件（表示：' + sample.length + '件）\n\n' +
+    sample.map(r => '📖『' + r.title + '』\n「' + r.sentence + '」').join('\n\n');
 
   document.getElementById('constellation-result-body').textContent = result;
   document.getElementById('constellation-result').style.display = 'block';
   document.getElementById('constellation-result').scrollIntoView({ behavior:'smooth', block:'start' });
   btn.disabled = false; btn.textContent = '📚 再検索する';
 }
+
 
 // ═══════════════════════════════════════════
 // CHARACTERS
