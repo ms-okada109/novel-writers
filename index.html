@@ -2581,7 +2581,27 @@ function loadAozoraFiles(e) {
       renderAozoraBookList();
       toast('📚 「' + title + '」を読み込みました');
     };
-    reader.readAsText(file, file.name.match(/\.html?$/i) ? 'UTF-8' : 'Shift_JIS');
+    // txtはcp932（Windows版Shift-JIS）、htmlはUTF-8
+    const enc = file.name.match(/\.html?$/i) ? 'UTF-8' : 'windows-1252';
+    // ブラウザによってShift-JISの対応が違うため、TextDecoderで確実に処理
+    const arrayReader = new FileReader();
+    arrayReader.onload = ae => {
+      const bytes = new Uint8Array(ae.target.result);
+      let decoded;
+      if (file.name.match(/\.html?$/i)) {
+        decoded = new TextDecoder('UTF-8').decode(bytes);
+      } else {
+        // Shift-JIS/cp932を試みる
+        try { decoded = new TextDecoder('shift-jis').decode(bytes); }
+        catch(e) {
+          try { decoded = new TextDecoder('windows-1252').decode(bytes); }
+          catch(e2) { decoded = new TextDecoder('utf-8', {fatal:false}).decode(bytes); }
+        }
+      }
+      reader.onload({ target: { result: decoded } });
+    };
+    arrayReader.readAsArrayBuffer(file);
+    return;
   });
 }
 
