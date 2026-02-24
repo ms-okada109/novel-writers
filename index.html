@@ -2540,26 +2540,32 @@ let aozoraBooks = [];
 function loadAozoraFiles(e) {
   const files = [...e.target.files];
   files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = ev => {
-      let text = ev.target.result;
-      let title = file.name.replace(/\.(txt|html?|)$/i, '');
+    const fr = new FileReader();
+    fr.onload = ae => {
+      const bytes = new Uint8Array(ae.target.result);
+      const isHtml = file.name.match(/\.html?$/i);
+
+      // デコード
+      let text;
+      if (isHtml) {
+        text = new TextDecoder('utf-8').decode(bytes);
+      } else {
+        text = new TextDecoder('shift-jis').decode(bytes);
+      }
+
+      let title = file.name.replace(/\.(txt|html?)$/i, '');
       let author = '';
 
-      if (file.name.match(/\.html?$/i)) {
-        // HTMLファイル：青空文庫のHTML構造から本文を抽出
+      if (isHtml) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(text, 'text/html');
-        // タイトルと著者を取得
         const titleEl = doc.querySelector('.title') || doc.querySelector('h1');
         const authorEl = doc.querySelector('.author');
         if (titleEl) title = titleEl.textContent.trim();
         if (authorEl) author = authorEl.textContent.trim();
-        // 本文を取得（青空文庫は div.main_text）
         const mainEl = doc.querySelector('.main_text') || doc.querySelector('#honbun') || doc.body;
         text = mainEl ? mainEl.textContent : doc.body.textContent;
       } else {
-        // テキストファイル
         const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
         title = lines[0] || title;
         author = lines[1] || '';
@@ -2572,8 +2578,7 @@ function loadAozoraFiles(e) {
         .replace(/［＃[^\]]*］/g, '')
         .replace(/-{3,}/g, '')
         .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n')
-        .replace(/\n{3,}/g, '\n\n');
+        .replace(/\r/g, '\n');
 
       const existing = aozoraBooks.findIndex(b => b.title === title);
       if (existing >= 0) aozoraBooks[existing] = { title, author, text };
@@ -2581,29 +2586,10 @@ function loadAozoraFiles(e) {
       renderAozoraBookList();
       toast('📚 「' + title + '」を読み込みました');
     };
-    // txtはcp932（Windows版Shift-JIS）、htmlはUTF-8
-    const enc = file.name.match(/\.html?$/i) ? 'UTF-8' : 'windows-1252';
-    // ブラウザによってShift-JISの対応が違うため、TextDecoderで確実に処理
-    const arrayReader = new FileReader();
-    arrayReader.onload = ae => {
-      const bytes = new Uint8Array(ae.target.result);
-      let decoded;
-      if (file.name.match(/\.html?$/i)) {
-        decoded = new TextDecoder('UTF-8').decode(bytes);
-      } else {
-        // Shift-JIS/cp932を試みる
-        try { decoded = new TextDecoder('shift-jis').decode(bytes); }
-        catch(e) {
-          try { decoded = new TextDecoder('windows-1252').decode(bytes); }
-          catch(e2) { decoded = new TextDecoder('utf-8', {fatal:false}).decode(bytes); }
-        }
-      }
-      reader.onload({ target: { result: decoded } });
-    };
-    arrayReader.readAsArrayBuffer(file);
-    return;
+    fr.readAsArrayBuffer(file);
   });
 }
+
 
 function renderAozoraBookList() {
   const el = document.getElementById('aozora-book-list');
