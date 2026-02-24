@@ -2635,37 +2635,54 @@ async function runAozoraAiSearch() {
   if (!apiKey) { toast('添削モーダルにAPIキーを入力してください'); return; }
 
   const btn = document.getElementById('const-btn-aozora-ai');
-  btn.disabled = true; btn.textContent = '🤖 探索中…';
+  btn.disabled = true;
 
-  // 各作品からランダムに文を抽出してAIに渡す（トークン制限対策）
-  const excerpts = aozoraBooks.map(book => {
-    const sentences = book.text
-      .split(/[。！？]/)
-      .map(s => s.trim())
-      .filter(s => s.length > 15 && s.length < 150);
-    // 全文をそのまま渡す（文字数は後で制限）
-    const sents = book.text.split(/[。！？]/).map(s => s.trim()).filter(s => s.length > 10 && s.length < 200);
-    return '【' + book.title + '／' + book.author + '】\n' + sents.join('。') + '。';
-  }).join('\n\n---\n\n').slice(0, 20000);
+  const resultBody = document.getElementById('constellation-result-body');
+  const resultEl = document.getElementById('constellation-result');
+  resultBody.textContent = '';
+  resultEl.style.display = 'block';
+  resultEl.scrollIntoView({ behavior:'smooth', block:'start' });
 
-  const prompt = '以下は青空文庫の原文抜粋です。\n\n' + excerpts + '\n\n---\n\n「' + instruction + '」に当てはまる箇所を原文からそのまま抜き出してください。\n\n【厳守】\n・原文を一字一句そのまま引用（書き換え・要約禁止）\n・各作品から2〜3箇所\n\n形式：\n📖『作品名』\n「原文」\n→ なぜ該当するか一言';
+  const CHUNK = 15000; // 1回に渡す文字数
+  let allResults = '';
 
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model:'claude-opus-4-5', max_tokens:3000, messages:[{role:'user',content:prompt}] })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || '失敗');
-    document.getElementById('constellation-result-body').textContent = data.content[0]?.text || '';
-    document.getElementById('constellation-result').style.display = 'block';
-    document.getElementById('constellation-result').scrollIntoView({ behavior:'smooth', block:'start' });
-  } catch(e) {
-    toast('⚠ ' + (e.message || 'AI検索に失敗しました'));
+  for (const book of aozoraBooks) {
+    const text = book.text;
+    const chunks = [];
+    for (let i = 0; i < text.length; i += CHUNK) {
+      chunks.push(text.slice(i, i + CHUNK));
+    }
+
+    for (let ci = 0; ci < chunks.length; ci++) {
+      btn.textContent = `🤖 探索中… ${book.title} (${ci+1}/${chunks.length})`;
+
+      const prompt = '以下は「' + book.title + '」（' + book.author + '）の原文です（' + (ci+1) + '/' + chunks.length + '部）。\n\n' + chunks[ci] + '\n\n---\n\n「' + instruction + '」に当てはまる箇所を原文からそのまま抜き出してください。なければ「該当なし」とだけ答えてください。\n\n【厳守】原文を一字一句そのまま引用。書き換え禁止。\n\n形式：\n「原文」\n→ 一言コメント';
+
+      try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+          body: JSON.stringify({ model:'claude-opus-4-5', max_tokens:1000, messages:[{role:'user',content:prompt}] })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || '失敗');
+        const result = data.content[0]?.text || '';
+        if (!result.includes('該当なし')) {
+          allResults += '\n\n📖『' + book.title + '』（' + (ci+1) + '/' + chunks.length + '部）\n' + result;
+          resultBody.textContent = allResults.trim();
+        }
+      } catch(e) {
+        toast('⚠ ' + (e.message || 'AI検索に失敗しました'));
+        btn.disabled = false; btn.textContent = '🤖 AIに探してもらう';
+        return;
+      }
+    }
   }
+
+  if (!allResults.trim()) resultBody.textContent = '該当する箇所が見つかりませんでした。';
   btn.disabled = false; btn.textContent = '🤖 AIに探してもらう';
 }
+
 
 function debugAozora() {
   if (!aozoraBooks.length) { toast('ファイルを読み込んでください'); return; }
