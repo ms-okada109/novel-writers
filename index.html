@@ -2612,12 +2612,8 @@ async function runAozoraSearch() {
     return;
   }
 
-  const sample = allResults.length > 30
-    ? allResults.sort(() => Math.random() - 0.5).slice(0, 30)
-    : allResults;
-
-  const result = '「' + keyword + '」の検索結果：' + allResults.length + '件（表示：' + sample.length + '件）\n\n' +
-    sample.map(r => '📖『' + r.title + '』\n「' + r.sentence + '」').join('\n\n');
+  const result = '「' + keyword + '」の検索結果：' + allResults.length + '件\n\n' +
+    allResults.map(r => '📖『' + r.title + '』\n「' + r.sentence + '」').join('\n\n');
 
   document.getElementById('constellation-result-body').textContent = result;
   document.getElementById('constellation-result').style.display = 'block';
