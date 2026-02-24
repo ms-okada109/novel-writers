@@ -1236,8 +1236,12 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
       </select>
     </div>
     <div class="modal-section">
-      <div class="modal-label">APIキー <span style="opacity:0.45;font-size:10px;">（ブラウザ内のみ・保存されません）</span></div>
-      <input type="password" id="api-key-input" class="modal-input" placeholder="sk-ant-... または AIzaSy...">
+      <div class="modal-label">APIキー</div>
+      <input type="password" id="api-key-input" class="modal-input" placeholder="sk-ant-... または AIzaSy..." oninput="onApiKeyInput()">
+      <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--ink-light);cursor:pointer;">
+        <input type="checkbox" id="api-key-save" onchange="onApiKeySaveToggle()">
+        このブラウザに保存する
+      </label>
     </div>
     <div class="modal-section">
       <div class="modal-label">添削するテキスト</div>
@@ -1628,6 +1632,7 @@ if (state.dark) document.body.classList.add('dark');
 document.getElementById('font-slider').value = state.fontSize || 17;
 document.getElementById('editor').style.fontSize = (state.fontSize || 17) + 'px';
 document.getElementById('goal-input').value = state.goal || 1000;
+restoreApiKey();
 
 if (!state.chapters || state.chapters.length === 0) {
   addChapter('第1章', true);
@@ -2638,13 +2643,19 @@ async function runAozoraAiSearch() {
       .split(/[。！？]/)
       .map(s => s.trim())
       .filter(s => s.length > 15 && s.length < 150);
-    // 作品全体を均等なブロックに分けて各ブロックからランダムに1文ずつ取る
-    const blockSize = Math.max(1, Math.floor(sentences.length / 80));
+    // 章ごとに分割して各章から均等サンプリング
+    const chapterBlocks = book.text.split(/\n(?:[一二三四五六七八九十百千]+|[0-9０-９]+)\n/).filter(b => b.trim().length > 50);
+    const blocksToUse = chapterBlocks.length > 1 ? chapterBlocks : [book.text];
+    const perBlock = Math.max(1, Math.ceil(80 / blocksToUse.length));
     const sample = [];
-    for (let i = 0; i < sentences.length && sample.length < 80; i += blockSize) {
-      const block = sentences.slice(i, i + blockSize);
-      sample.push(block[Math.floor(Math.random() * block.length)]);
-    }
+    blocksToUse.forEach(block => {
+      const blockSents = block.split(/[。！？]/).map(s => s.trim()).filter(s => s.length > 15 && s.length < 150);
+      const step = Math.max(1, Math.floor(blockSents.length / perBlock));
+      for (let i = 0; i < blockSents.length && sample.length < 80; i += step) {
+        const slice = blockSents.slice(i, i + step);
+        sample.push(slice[Math.floor(Math.random() * slice.length)]);
+      }
+    });
     return '【' + book.title + '／' + book.author + '】\n' + sample.join('。') + '。';
   }).join('\n\n---\n\n').slice(0, 8000);
 
@@ -2885,8 +2896,43 @@ function openProofModal() {
   document.getElementById('modal-result').style.display = 'none';
   document.getElementById('copy-result-btn').style.display = 'none';
   document.getElementById('proof-btn').textContent = '添削を実行';
+  // 保存済みAPIキーを読み込む
+  const saved = localStorage.getItem('tsuduri_api_key');
+  if (saved) {
+    document.getElementById('api-key-input').value = saved;
+    document.getElementById('api-key-save').checked = true;
+  }
   document.getElementById('modal-overlay').classList.add('show');
 }
+
+function onApiKeyInput() {
+  if (document.getElementById('api-key-save').checked) {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (key) localStorage.setItem('tsuduri_api_key', key);
+  }
+}
+
+function onApiKeySaveToggle() {
+  const checked = document.getElementById('api-key-save').checked;
+  const key = document.getElementById('api-key-input').value.trim();
+  if (checked && key) {
+    localStorage.setItem('tsuduri_api_key', key);
+    toast('💾 APIキーを保存しました');
+  } else {
+    localStorage.removeItem('tsuduri_api_key');
+    toast('🗑 APIキーの保存を解除しました');
+  }
+}
+
+// 起動時にAPIキーを復元
+function restoreApiKey() {
+  const saved = localStorage.getItem('tsuduri_api_key');
+  if (saved) {
+    document.getElementById('api-key-input').value = saved;
+    document.getElementById('api-key-save').checked = true;
+  }
+}
+
 
 async function runProof() {
   const apiKey = document.getElementById('api-key-input').value.trim();
