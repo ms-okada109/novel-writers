@@ -1030,6 +1030,7 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
       <button class="top-btn icon-btn" onclick="toggleDark()" title="ダーク/ライト切替">🌙</button>
       <button class="top-btn icon-btn" onclick="toggleFocus()" title="フォーカスモード (F)">⛶</button>
       <button class="top-btn icon-btn" id="phrase-drawer-btn" onclick="togglePhraseDrawer()" title="フレーズ参照パネル">📜</button>
+      <button class="top-btn" onclick="manualSave()" title="保存">💾 保存</button>
       <span id="gist-status" onclick="openGistModal()" style="font-size:11px;cursor:pointer;white-space:nowrap;"></span>
       <button class="top-btn" onclick="openExportModal()">書き出し</button>
       <button class="top-btn primary" onclick="openProofModal()">✦ 添削</button>
@@ -1446,6 +1447,16 @@ async function setupGist() {
 
   btn.textContent = '接続する'; btn.disabled = false;
   updateGistStatus();
+}
+
+async function manualSave() {
+  saveState();
+  if (gistToken && gistId) {
+    const ok = await pushToGist();
+    toast(ok ? '☁ Gistに保存しました' : '⚠ Gist保存失敗（ローカルには保存済）');
+  } else {
+    toast('💾 保存しました');
+  }
 }
 
 function openGistModal() {
