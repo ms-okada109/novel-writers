@@ -351,6 +351,12 @@ body.focus-mode #editor-wrapper { padding: 60px 80px; }
   gap: 18px;
   background: var(--paper);
 }
+#panel-constellation {
+  padding: 32px 44px 32px 60px;
+}
+@media (max-width: 600px) {
+  #panel-constellation { padding: 20px 16px 20px 16px; }
+}
 .notes-header {
   font-family: 'Shippori Mincho', serif;
   font-size: 21px;
@@ -1255,11 +1261,11 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
   </p>
 
   <!-- 分析モード選択 -->
-  <div id="constellation-modes" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-    <button class="const-mode-btn active" data-mode="connections" onclick="selectConstMode('connections',this)">🔗 繋がりを発見</button>
-    <button class="const-mode-btn" data-mode="brief" onclick="selectConstMode('brief',this)">📋 章のブリーフィング</button>
-    <button class="const-mode-btn" data-mode="suggest" onclick="selectConstMode('suggest',this)">💡 執筆中に提案</button>
-    <button class="const-mode-btn" data-mode="aozora" onclick="selectConstMode('aozora',this)">📚 青空文庫から引用</button>
+  <div id="constellation-modes" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+    <button class="const-mode-btn active" data-mode="connections" onclick="selectConstMode('connections',this)">🔗 繋がり</button>
+    <button class="const-mode-btn" data-mode="brief" onclick="selectConstMode('brief',this)">📋 ブリーフィング</button>
+    <button class="const-mode-btn" data-mode="suggest" onclick="selectConstMode('suggest',this)">💡 執筆提案</button>
+    <button class="const-mode-btn" data-mode="aozora" onclick="selectConstMode('aozora',this)">📚 青空文庫</button>
   </div>
 
   <!-- 繋がりを発見モード -->
