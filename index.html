@@ -2667,10 +2667,8 @@ async function runAozoraAiSearch() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error?.message || '失敗');
         const result = data.content[0]?.text || '';
-        if (!result.includes('該当なし')) {
-          allResults += '\n\n📖『' + book.title + '』（' + (ci+1) + '/' + chunks.length + '部）\n' + result;
-          resultBody.textContent = allResults.trim();
-        }
+        allResults += '\n\n📖『' + book.title + '』（' + (ci+1) + '/' + chunks.length + '部）\n' + result;
+        resultBody.textContent = allResults.trim();
       } catch(e) {
         toast('⚠ ' + (e.message || 'AI検索に失敗しました'));
         btn.disabled = false; btn.textContent = '🤖 AIに探してもらう';
