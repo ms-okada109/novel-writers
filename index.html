@@ -1287,9 +1287,10 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
     </p>
     <div id="aozora-book-list" style="margin-bottom:10px;"></div>
     <label class="notes-add-btn" style="cursor:pointer;display:inline-block;margin-bottom:12px;">
-      📂 テキストファイルを読み込む
-      <input type="file" accept=".txt" multiple style="display:none" onchange="loadAozoraFiles(event)">
+      📂 ファイルを読み込む（.html / .txt）
+      <input type="file" accept=".txt,.html,.htm" multiple style="display:none" onchange="loadAozoraFiles(event)">
     </label>
+    <p style="font-size:10px;color:var(--ink-light);opacity:0.4;margin-bottom:8px;">青空文庫のHTMLページを「名前を付けて保存」して読み込むのがおすすめです</p>
     <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">キーワード（複数入力でAND絞り込み）</div>
     <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:60px;outline:none;" placeholder="例：死、夜　← 両方含む文だけ抽出"></textarea>
     <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraSearch()" id="const-btn-aozora">📚 原文を探す</button>
@@ -2511,24 +2512,45 @@ function loadAozoraFiles(e) {
     const reader = new FileReader();
     reader.onload = ev => {
       let text = ev.target.result;
+      let title = file.name.replace(/\.(txt|html?|)$/i, '');
+      let author = '';
+
+      if (file.name.match(/\.html?$/i)) {
+        // HTMLファイル：青空文庫のHTML構造から本文を抽出
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        // タイトルと著者を取得
+        const titleEl = doc.querySelector('.title') || doc.querySelector('h1');
+        const authorEl = doc.querySelector('.author');
+        if (titleEl) title = titleEl.textContent.trim();
+        if (authorEl) author = authorEl.textContent.trim();
+        // 本文を取得（青空文庫は div.main_text）
+        const mainEl = doc.querySelector('.main_text') || doc.querySelector('#honbun') || doc.body;
+        text = mainEl ? mainEl.textContent : doc.body.textContent;
+      } else {
+        // テキストファイル
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        title = lines[0] || title;
+        author = lines[1] || '';
+      }
+
       // 青空文庫記法を除去
       text = text
         .replace(/《[^》]*》/g, '')
         .replace(/｜/g, '')
-        .replace(/［＃[^］]*］/g, '')
+        .replace(/［＃[^\]]*］/g, '')
         .replace(/-{3,}/g, '')
         .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n');
-      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-      const title = lines[0] || file.name.replace(/\.txt$/, '');
-      const author = lines[1] || '';
+        .replace(/\r/g, '\n')
+        .replace(/\n{3,}/g, '\n\n');
+
       const existing = aozoraBooks.findIndex(b => b.title === title);
       if (existing >= 0) aozoraBooks[existing] = { title, author, text };
       else aozoraBooks.push({ title, author, text });
       renderAozoraBookList();
       toast('📚 「' + title + '」を読み込みました');
     };
-    reader.readAsText(file, 'Shift_JIS');
+    reader.readAsText(file, 'UTF-8');
   });
 }
 
