@@ -1,0 +1,2483 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>綴り — 小説執筆アプリ</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;700&family=Noto+Sans+JP:wght@300;400;500&family=Shippori+Mincho:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1a1008;
+  --ink-light: #4a3828;
+  --paper: #f5f0e8;
+  --paper-warm: #ede8dc;
+  --paper-deep: #d9d0be;
+  --accent: #8b4513;
+  --accent-light: #c4763a;
+  --accent-pale: #f0e0d0;
+  --red: #c0392b;
+  --gold: #b8860b;
+  --green: #2e7d32;
+  --shadow: rgba(26,16,8,0.15);
+  --sidebar-w: 230px;
+  --sidebar-bg: #1a1008;
+  --sidebar-fg: #f5f0e8;
+}
+.dark {
+  --ink: #e8e0d0;
+  --ink-light: #b8a898;
+  --paper: #1a1612;
+  --paper-warm: #231f1a;
+  --paper-deep: #332d26;
+  --accent: #c4763a;
+  --accent-light: #e09050;
+  --accent-pale: #3a2510;
+  --shadow: rgba(0,0,0,0.4);
+  --sidebar-bg: #0f0d0b;
+  --sidebar-fg: #e8e0d0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  height: 100vh;
+  display: flex;
+  overflow: hidden;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* ── SIDEBAR ── */
+#sidebar {
+  width: var(--sidebar-w);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-fg);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+  box-shadow: 4px 0 20px var(--shadow);
+  transition: width 0.25s ease;
+  z-index: 10;
+}
+#sidebar.collapsed { width: 52px; }
+#sidebar.collapsed .hide-collapsed { display: none; }
+#sidebar.collapsed .nav-item { padding: 10px; justify-content: center; }
+#sidebar.collapsed .nav-item .icon { width: auto; }
+#sidebar.collapsed #sidebar-header { padding: 16px 10px; }
+#sidebar.collapsed #add-chapter-btn { display: none; }
+
+#sidebar-header {
+  padding: 20px 18px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#sidebar-header h1 {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 20px;
+  letter-spacing: 0.3em;
+  color: var(--sidebar-fg);
+  font-weight: 400;
+}
+#toggle-sidebar {
+  background: none;
+  border: none;
+  color: rgba(232,224,208,0.4);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+#toggle-sidebar:hover { color: var(--sidebar-fg); }
+
+/* 執筆の芽 (スタンプキャラ) */
+#sidebar-pet {
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+#pet-emoji {
+  font-size: 32px;
+  transition: transform 0.3s;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  line-height: 1;
+}
+#pet-emoji:hover { transform: scale(1.15) rotate(-5deg); }
+#pet-name {
+  font-size: 11px;
+  color: rgba(232,224,208,0.6);
+  letter-spacing: 0.15em;
+}
+#pet-level {
+  font-size: 9px;
+  color: var(--accent-light);
+  letter-spacing: 0.2em;
+}
+#pet-bar-wrap {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+#pet-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+.nav-section { padding: 10px 0 2px; }
+.nav-label {
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  color: rgba(232,224,208,0.3);
+  padding: 4px 18px 5px;
+  text-transform: uppercase;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+  color: rgba(232,224,208,0.65);
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: rgba(255,255,255,0.06); color: var(--sidebar-fg); }
+.nav-item.active { background: rgba(196,118,58,0.2); color: var(--accent-light); border-left-color: var(--accent-light); }
+.nav-item .icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+
+/* Chapter list */
+#chapter-list { padding: 2px 0; }
+.chapter-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 18px 6px 36px;
+  cursor: pointer;
+  font-size: 12px;
+  color: rgba(232,224,208,0.5);
+  transition: all 0.15s;
+  border-left: 3px solid transparent;
+  gap: 4px;
+  user-select: none;
+}
+.chapter-item:hover { background: rgba(255,255,255,0.04); color: rgba(232,224,208,0.85); }
+.chapter-item.active { color: var(--accent-light); border-left-color: var(--accent-light); background: rgba(196,118,58,0.12); }
+.ch-title-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font-size: 12px;
+  font-family: 'Noto Sans JP', sans-serif;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+.chapter-item.active .ch-title-input { cursor: text; }
+.ch-drag { opacity: 0; cursor: grab; font-size: 10px; transition: opacity 0.15s; }
+.chapter-item:hover .ch-drag { opacity: 0.4; }
+.ch-del { opacity: 0; cursor: pointer; color: var(--red); font-size: 10px; transition: opacity 0.15s; margin-left: auto; flex-shrink: 0; }
+.chapter-item:hover .ch-del { opacity: 0.5; }
+#add-chapter-btn {
+  padding: 6px 18px 6px 36px;
+  font-size: 11px;
+  color: rgba(232,224,208,0.28);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+#add-chapter-btn:hover { color: var(--accent-light); }
+
+/* ── MAIN ── */
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Topbar */
+#topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: var(--paper-warm);
+  border-bottom: 1px solid var(--paper-deep);
+  height: 50px;
+  flex-shrink: 0;
+  gap: 12px;
+}
+#panel-title { font-family: 'Shippori Mincho', serif; font-size: 15px; color: var(--ink-light); letter-spacing: 0.2em; white-space: nowrap; }
+#search-box {
+  flex: 1;
+  max-width: 260px;
+  padding: 5px 12px;
+  border: 1px solid var(--paper-deep);
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s;
+}
+#search-box:focus { border-color: var(--accent-light); }
+#search-box::placeholder { color: rgba(74,56,40,0.35); }
+#topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+#char-count-wrap { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+#char-count { font-size: 13px; color: var(--accent-light); font-weight: 500; letter-spacing: 0.05em; }
+#char-goal-info { font-size: 10px; color: var(--ink-light); opacity: 0.5; }
+#save-indicator { font-size: 10px; color: rgba(74,56,40,0.4); letter-spacing: 0.1em; white-space: nowrap; }
+.top-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--paper-deep);
+  background: var(--paper);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  color: var(--ink-light);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.top-btn:hover { background: var(--paper-deep); }
+.top-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.top-btn.primary:hover { background: #a0521a; }
+.top-btn.icon-btn { padding: 5px 8px; font-size: 14px; }
+
+/* Font size slider */
+#font-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink-light);
+  opacity: 0.6;
+}
+#font-slider { width: 60px; accent-color: var(--accent); }
+
+/* ── PANELS ── */
+#content { flex: 1; overflow: hidden; position: relative; }
+.panel { position: absolute; inset: 0; display: none; overflow: hidden; }
+.panel.active { display: flex; }
+
+/* Search highlight */
+mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
+
+/* ── EDITOR ── */
+#panel-editor { flex-direction: column; }
+#editor-wrapper {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 36px 44px;
+  background: var(--paper);
+  background-image: repeating-linear-gradient(
+    90deg, transparent, transparent calc(1.8em - 1px),
+    rgba(180,160,130,0.12) calc(1.8em - 1px), rgba(180,160,130,0.12) 1.8em
+  );
+  display: flex;
+  justify-content: flex-end;
+}
+#editor {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: 'Shippori Mincho', serif;
+  font-size: 17px;
+  line-height: 1.8em;
+  color: var(--ink);
+  outline: none;
+  min-height: 100%;
+  max-height: 100%;
+  width: max-content;
+  min-width: 100%;
+  white-space: pre-wrap;
+  word-break: break-all;
+  caret-color: var(--accent);
+  letter-spacing: 0.08em;
+  transition: font-size 0.15s;
+}
+#editor:empty::before { content: attr(data-placeholder); color: rgba(74,56,40,0.28); pointer-events: none; }
+
+/* Goal bar */
+#goal-bar-wrap {
+  height: 3px;
+  background: var(--paper-deep);
+  flex-shrink: 0;
+}
+#goal-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  transition: width 0.4s ease;
+  max-width: 100%;
+}
+
+/* Focus mode */
+body.focus-mode #sidebar { width: 0; overflow: hidden; }
+body.focus-mode #topbar { opacity: 0; height: 0; padding: 0; pointer-events: none; }
+body.focus-mode #goal-bar-wrap { display: none; }
+body.focus-mode #editor-wrapper { padding: 60px 80px; }
+
+/* ── NOTES PANELS ── */
+.notes-panel {
+  padding: 32px 44px;
+  overflow-y: auto;
+  flex-direction: column;
+  gap: 18px;
+  background: var(--paper);
+}
+.notes-header {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 21px;
+  color: var(--ink);
+  letter-spacing: 0.2em;
+  border-bottom: 2px solid var(--paper-deep);
+  padding-bottom: 10px;
+}
+.notes-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-deep);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--ink-light);
+  transition: all 0.15s;
+  width: fit-content;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.notes-add-btn:hover { background: var(--paper-deep); }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.card {
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-deep);
+  border-radius: 8px;
+  padding: 14px;
+  position: relative;
+  transition: box-shadow 0.15s;
+}
+.card:hover { box-shadow: 0 4px 16px var(--shadow); }
+.card-title {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 7px;
+  color: var(--ink);
+  border: none;
+  background: transparent;
+  width: 100%;
+  outline: none;
+  letter-spacing: 0.1em;
+}
+.card-body {
+  font-size: 13px;
+  color: var(--ink-light);
+  border: none;
+  background: transparent;
+  width: 100%;
+  resize: none;
+  outline: none;
+  font-family: 'Noto Sans JP', sans-serif;
+  line-height: 1.7;
+  min-height: 72px;
+}
+.card-meta { font-size: 10px; color: var(--ink-light); opacity: 0.4; margin-top: 6px; letter-spacing: 0.05em; }
+.card-del {
+  position: absolute; top: 10px; right: 10px;
+  font-size: 13px; cursor: pointer;
+  color: rgba(192,57,43,0.35); transition: color 0.15s;
+  background: none; border: none;
+}
+.card-del:hover { color: var(--red); }
+
+/* Char cards */
+.char-card {
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-deep);
+  border-radius: 8px;
+  padding: 18px;
+  display: flex;
+  gap: 14px;
+  position: relative;
+}
+.char-avatar {
+  width: 60px; height: 60px; border-radius: 50%;
+  background: var(--paper-deep); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; cursor: pointer;
+  border: 2px solid var(--paper-deep);
+  transition: border-color 0.15s;
+}
+.char-avatar:hover { border-color: var(--accent-light); }
+.char-info { flex: 1; }
+.char-name {
+  font-family: 'Shippori Mincho', serif; font-size: 16px; font-weight: 700;
+  border: none; background: transparent; outline: none;
+  color: var(--ink); width: 100%; letter-spacing: 0.15em;
+}
+.char-field { display: flex; gap: 8px; align-items: baseline; margin-top: 5px; }
+.char-label { font-size: 10px; color: var(--ink-light); opacity: 0.5; letter-spacing: 0.2em; min-width: 38px; }
+.char-input {
+  font-size: 13px; border: none; border-bottom: 1px solid var(--paper-deep);
+  background: transparent; outline: none; color: var(--ink-light); flex: 1;
+  font-family: 'Noto Sans JP', sans-serif; padding: 1px 4px; transition: border-color 0.15s;
+}
+.char-input:focus { border-bottom-color: var(--accent-light); }
+.char-memo {
+  margin-top: 8px; font-size: 13px; border: none;
+  background: rgba(180,160,130,0.08); border-radius: 4px;
+  padding: 7px; outline: none; color: var(--ink-light);
+  width: 100%; resize: none; font-family: 'Noto Sans JP', sans-serif;
+  line-height: 1.7; min-height: 56px;
+}
+
+/* Botsu */
+.botsu-card { background: rgba(192,57,43,0.04); border: 1px dashed rgba(192,57,43,0.28); border-radius: 8px; padding: 14px; position: relative; }
+.botsu-label { font-size: 9px; padding: 2px 7px; background: rgba(192,57,43,0.1); color: var(--red); border-radius: 10px; display: inline-block; margin-bottom: 5px; letter-spacing: 0.15em; }
+
+/* ── STAMP PANEL ── */
+.notes-panel#panel-stamp { gap: 24px; }
+#stamp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+}
+.stamp-cell {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-deep);
+  position: relative;
+  cursor: default;
+  transition: transform 0.15s;
+}
+.stamp-cell:hover { transform: scale(1.1); }
+.stamp-cell.today {
+  border-color: var(--accent-light);
+  box-shadow: 0 0 0 2px rgba(196,118,58,0.3);
+}
+.stamp-cell.empty { opacity: 0.25; font-size: 14px; }
+.stamp-cell .stamp-date {
+  position: absolute; bottom: 2px; right: 3px;
+  font-size: 7px; color: var(--ink-light); opacity: 0.5; letter-spacing: 0;
+}
+
+/* Stats section */
+.stat-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.stat-card {
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-deep);
+  border-radius: 8px;
+  padding: 14px 20px;
+  flex: 1;
+  min-width: 120px;
+}
+.stat-val {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 28px;
+  color: var(--accent-light);
+  letter-spacing: 0.05em;
+}
+.stat-label { font-size: 11px; color: var(--ink-light); opacity: 0.6; margin-top: 2px; letter-spacing: 0.1em; }
+
+/* Pet growth display */
+#pet-showcase {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-deep);
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+#pet-big { font-size: 64px; line-height: 1; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15)); }
+.pet-info-block { flex: 1; }
+.pet-info-block h3 { font-family: 'Shippori Mincho', serif; font-size: 18px; letter-spacing: 0.2em; color: var(--ink); }
+.pet-info-block p { font-size: 12px; color: var(--ink-light); opacity: 0.6; margin-top: 4px; line-height: 1.7; }
+#pet-xp-bar-wrap { width: 100%; height: 8px; background: var(--paper-deep); border-radius: 4px; overflow: hidden; margin-top: 10px; }
+#pet-xp-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); border-radius: 4px; transition: width 0.8s ease; }
+.pet-xp-label { font-size: 11px; color: var(--ink-light); opacity: 0.5; margin-top: 4px; }
+
+/* Goal setter */
+#goal-setter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-deep);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+#goal-setter label { font-size: 13px; color: var(--ink-light); white-space: nowrap; }
+#goal-input {
+  border: 1px solid var(--paper-deep);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 14px;
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  outline: none;
+  width: 90px;
+}
+#goal-input:focus { border-color: var(--accent-light); }
+
+/* ── SEARCH RESULT ── */
+#panel-search { flex-direction: column; }
+#search-results { padding: 24px 44px; overflow-y: auto; flex: 1; }
+.search-result-item {
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--paper-deep);
+  background: var(--paper-warm);
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.search-result-item:hover { box-shadow: 0 2px 10px var(--shadow); }
+.sr-chapter { font-size: 10px; color: var(--accent-light); letter-spacing: 0.15em; margin-bottom: 4px; }
+.sr-excerpt { font-size: 13px; color: var(--ink-light); line-height: 1.8; }
+
+/* ── MODALS ── */
+#modal-overlay, #stamp-modal-overlay, #export-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(26,16,8,0.55);
+  display: none; align-items: center; justify-content: center;
+  z-index: 100; backdrop-filter: blur(3px);
+}
+#modal-overlay.show, #stamp-modal-overlay.show, #export-modal-overlay.show { display: flex; }
+.modal {
+  background: var(--paper);
+  border-radius: 12px;
+  padding: 28px;
+  width: 580px; max-width: 92vw; max-height: 82vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(26,16,8,0.3);
+}
+.modal h2 { font-family: 'Shippori Mincho', serif; font-size: 19px; letter-spacing: 0.2em; margin-bottom: 14px; color: var(--ink); }
+.modal-section { margin-bottom: 14px; }
+.modal-label { font-size: 11px; color: var(--ink-light); opacity: 0.55; letter-spacing: 0.1em; margin-bottom: 5px; }
+.modal-input {
+  width: 100%; padding: 9px 13px;
+  border: 1px solid var(--paper-deep); border-radius: 6px;
+  font-size: 13px; font-family: 'Noto Sans JP', sans-serif;
+  background: var(--paper-warm); color: var(--ink); outline: none;
+  transition: border-color 0.15s;
+}
+.modal-input:focus { border-color: var(--accent-light); }
+#modal-result {
+  padding: 14px; background: var(--paper-warm); border-radius: 6px;
+  font-size: 13px; line-height: 1.9; color: var(--ink);
+  font-family: 'Noto Sans JP', sans-serif; white-space: pre-wrap;
+  display: none; border-left: 3px solid var(--accent-light);
+  max-height: 320px; overflow-y: auto;
+}
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+.modal-btn {
+  padding: 7px 18px; border-radius: 6px; font-size: 13px;
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
+  transition: all 0.15s; border: 1px solid var(--paper-deep);
+  background: var(--paper-warm); color: var(--ink-light);
+}
+.modal-btn:hover { background: var(--paper-deep); }
+.modal-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.modal-btn.primary:hover { background: #a0521a; }
+.modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Stamp popup */
+#stamp-popup-inner { text-align: center; padding: 10px; }
+#stamp-popup-emoji { font-size: 72px; animation: popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275); display: block; }
+@keyframes popIn { from { transform: scale(0.3) rotate(-10deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+#stamp-popup-msg { font-family: 'Shippori Mincho', serif; font-size: 16px; margin-top: 12px; color: var(--ink); letter-spacing: 0.2em; }
+#stamp-popup-sub { font-size: 12px; color: var(--ink-light); opacity: 0.6; margin-top: 6px; }
+
+/* Export options */
+.export-option {
+  padding: 14px 16px; border: 1px solid var(--paper-deep); border-radius: 8px;
+  cursor: pointer; background: var(--paper-warm); margin-bottom: 10px;
+  transition: all 0.15s; display: flex; align-items: center; gap: 12px;
+}
+.export-option:hover { border-color: var(--accent-light); box-shadow: 0 2px 8px var(--shadow); }
+.export-option .eo-icon { font-size: 24px; }
+.export-option h4 { font-size: 14px; color: var(--ink); margin-bottom: 2px; }
+.export-option p { font-size: 11px; color: var(--ink-light); opacity: 0.6; }
+
+/* Spinner */
+.spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 5px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Empty state */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; color: rgba(74,56,40,0.3); font-size: 13px; gap: 10px; grid-column: 1 / -1; }
+.empty-state .es-icon { font-size: 36px; }
+
+/* Toast */
+#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--paper); padding: 8px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: all 0.25s; z-index: 200; pointer-events: none; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Focus escape */
+#focus-escape { position: fixed; top: 12px; right: 16px; z-index: 50; background: rgba(26,16,8,0.5); color: rgba(232,224,208,0.5); border: none; border-radius: 4px; padding: 5px 10px; font-size: 11px; cursor: pointer; display: none; font-family: 'Noto Sans JP', sans-serif; }
+body.focus-mode #focus-escape { display: block; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--paper-deep); border-radius: 3px; }
+
+/* Drag-over */
+.chapter-item.drag-over { background: rgba(196,118,58,0.15); }
+
+/* ── PHRASE DRAWER ── */
+#panel-editor {
+  flex-direction: row;
+}
+#phrase-drawer {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--paper-warm);
+  border-left: 1px solid var(--paper-deep);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.25s ease, min-width 0.25s ease;
+  flex-shrink: 0;
+}
+#phrase-drawer.open {
+  width: 420px;
+  min-width: 420px;
+}
+body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
+
+#phrase-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--paper-deep);
+  flex-shrink: 0;
+}
+#phrase-drawer-title {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  color: var(--ink-light);
+}
+#phrase-drawer-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-light);
+  opacity: 0.4;
+  font-size: 12px;
+  transition: opacity 0.15s;
+  padding: 2px;
+}
+#phrase-drawer-close:hover { opacity: 1; }
+
+#phrase-drawer-chapter-tags {
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--paper-deep);
+  flex-shrink: 0;
+}
+#phrase-drawer-filter {
+  padding: 8px 14px 6px;
+  border-bottom: 1px solid var(--paper-deep);
+  flex-shrink: 0;
+}
+.drawer-label {
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  color: var(--ink-light);
+  opacity: 0.45;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+#drawer-chapter-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+.drawer-chapter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--accent-pale);
+  color: var(--accent);
+  font-size: 11px;
+}
+.drawer-chapter-tag .chip-del {
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 10px;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+.drawer-chapter-tag .chip-del:hover { opacity: 1; }
+
+.drawer-tag-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px dashed var(--paper-deep);
+  background: transparent;
+  outline: none;
+  font-size: 11px;
+  color: var(--ink-light);
+  font-family: 'Noto Sans JP', sans-serif;
+  padding: 2px 4px;
+}
+.drawer-tag-input::placeholder { color: rgba(74,56,40,0.3); }
+
+#drawer-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.drawer-filter-pill {
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid var(--paper-deep);
+  background: var(--paper);
+  color: var(--ink-light);
+  transition: all 0.15s;
+  user-select: none;
+}
+.drawer-filter-pill:hover { border-color: var(--accent-light); color: var(--accent-light); }
+.drawer-filter-pill.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+#phrase-drawer-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.drawer-phrase-card {
+  background: var(--paper);
+  border: 1px solid var(--paper-deep);
+  border-left: 3px solid var(--accent-light);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: default;
+  transition: box-shadow 0.15s;
+}
+.drawer-phrase-card:hover { box-shadow: 0 2px 8px var(--shadow); }
+.drawer-phrase-card .dp-title {
+  font-size: 10px;
+  color: var(--accent-light);
+  letter-spacing: 0.1em;
+  margin-bottom: 5px;
+  opacity: 0.8;
+}
+.drawer-phrase-card .dp-body {
+  font-family: 'Shippori Mincho', serif;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.drawer-phrase-card .dp-tags {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.drawer-phrase-card .dp-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent-pale);
+  color: var(--accent);
+}
+.drawer-empty {
+  text-align: center;
+  padding: 30px 10px;
+  font-size: 12px;
+  color: var(--ink-light);
+  opacity: 0.4;
+  line-height: 1.9;
+}
+
+/* phrase-drawer-btn active state */
+#phrase-drawer-btn.active {
+  background: var(--accent-pale);
+  border-color: var(--accent-light);
+  color: var(--accent);
+}
+
+.idea-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.idea-search-input {
+  flex: 1;
+  min-width: 160px;
+  padding: 7px 14px;
+  border: 1px solid var(--paper-deep);
+  border-radius: 20px;
+  font-size: 13px;
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--paper-warm);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.idea-search-input:focus { border-color: var(--accent-light); }
+.idea-search-input::placeholder { color: rgba(74,56,40,0.35); }
+
+#idea-tag-filter-wrap, #phrase-tag-filter-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 2px;
+}
+.tag-filter-pill {
+  padding: 3px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--paper-deep);
+  background: var(--paper-warm);
+  color: var(--ink-light);
+  transition: all 0.15s;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+.tag-filter-pill:hover { border-color: var(--accent-light); color: var(--accent-light); }
+.tag-filter-pill.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+/* Tag input area on card */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+  align-items: center;
+}
+.card-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--accent-pale);
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  cursor: default;
+}
+.card-tag-chip .chip-del {
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 10px;
+  transition: opacity 0.15s;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  line-height: 1;
+}
+.card-tag-chip .chip-del:hover { opacity: 1; }
+
+.card-tag-input {
+  border: none;
+  border-bottom: 1px dashed var(--paper-deep);
+  background: transparent;
+  outline: none;
+  font-size: 11px;
+  color: var(--ink-light);
+  font-family: 'Noto Sans JP', sans-serif;
+  width: 80px;
+  padding: 1px 4px;
+}
+.card-tag-input::placeholder { color: rgba(74,56,40,0.3); }
+
+/* Phrase link in idea card */
+.phrase-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent-light);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font-family: 'Noto Sans JP', sans-serif;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+  margin-top: 4px;
+}
+.phrase-link-btn:hover { opacity: 1; }
+
+/* Phrase card accent */
+.phrase-card { border-left: 3px solid var(--accent-light); }
+.phrase-card .card-body { font-family: 'Shippori Mincho', serif; font-size: 14px; line-height: 1.9; }
+
+
+/* Today's word count badge */
+#today-count { font-size: 10px; padding: 1px 7px; background: rgba(196,118,58,0.15); color: var(--accent-light); border-radius: 10px; letter-spacing: 0.05em; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div id="sidebar-header">
+    <h1 class="hide-collapsed">綴り</h1>
+    <button id="toggle-sidebar" onclick="toggleSidebar()" title="サイドバーを折りたたむ">◀</button>
+  </div>
+
+  <!-- 執筆の芽 -->
+  <div id="sidebar-pet" onclick="switchPanel('stamp',null)" title="スタンプ帳を開く" class="hide-collapsed">
+    <div id="pet-emoji">🌱</div>
+    <div id="pet-name">執筆の芽</div>
+    <div id="pet-level">Lv.1</div>
+    <div id="pet-bar-wrap"><div id="pet-bar" style="width:0%"></div></div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label hide-collapsed">執筆</div>
+    <div class="nav-item active" data-panel="editor" onclick="switchPanel('editor',this)">
+      <span class="icon">✒</span><span class="hide-collapsed">本編エディタ</span>
+    </div>
+    <div class="nav-label hide-collapsed" style="margin-top:6px; padding-top:6px;">章</div>
+    <div id="chapter-list" class="hide-collapsed"></div>
+    <div id="add-chapter-btn" onclick="addChapter()" class="hide-collapsed">＋ 章を追加</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label hide-collapsed">ノート</div>
+    <div class="nav-item" data-panel="ideas" onclick="switchPanel('ideas',this)">
+      <span class="icon">💡</span><span class="hide-collapsed">アイデア帳</span>
+    </div>
+    <div class="nav-item" id="nav-phrases" onclick="openPhraseDrawerFromSidebar()">
+      <span class="icon">📜</span><span class="hide-collapsed">フレーズ蒐集帖</span>
+    </div>
+    <div class="nav-item" data-panel="characters" onclick="switchPanel('characters',this)">
+      <span class="icon">👤</span><span class="hide-collapsed">人物ノート</span>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label hide-collapsed">その他</div>
+    <div class="nav-item" data-panel="botsu" onclick="switchPanel('botsu',this)">
+      <span class="icon">🗑</span><span class="hide-collapsed">ボツコーナー</span>
+    </div>
+    <div class="nav-item" data-panel="stamp" onclick="switchPanel('stamp',this)">
+      <span class="icon">📅</span><span class="hide-collapsed">スタンプ帳</span>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <div id="panel-title">本編エディタ</div>
+    <input id="search-box" type="text" placeholder="🔍 全章を検索…" oninput="onSearch(this.value)">
+    <div id="topbar-right">
+      <span id="save-indicator"></span>
+      <div id="char-count-wrap">
+        <span id="char-count">0 字</span>
+        <span id="char-goal-info"></span>
+      </div>
+      <div id="font-slider-wrap" title="文字サイズ">
+        A<input id="font-slider" type="range" min="13" max="26" value="17" oninput="setFontSize(this.value)">A
+      </div>
+      <button class="top-btn icon-btn" onclick="toggleDark()" title="ダーク/ライト切替">🌙</button>
+      <button class="top-btn icon-btn" onclick="toggleFocus()" title="フォーカスモード (F)">⛶</button>
+      <button class="top-btn icon-btn" id="phrase-drawer-btn" onclick="togglePhraseDrawer()" title="フレーズ参照パネル">📜</button>
+      <span id="gist-status" onclick="document.getElementById('gist-modal-overlay').classList.add('show')" style="font-size:11px;cursor:pointer;white-space:nowrap;"></span>
+      <button class="top-btn" onclick="openExportModal()">書き出し</button>
+      <button class="top-btn primary" onclick="openProofModal()">✦ 添削</button>
+    </div>
+  </div>
+  <div id="goal-bar-wrap"><div id="goal-bar" style="width:0%"></div></div>
+
+  <div id="content">
+    <!-- 本編エディタ -->
+    <div class="panel active" id="panel-editor">
+      <div id="editor-wrapper">
+        <div id="editor" contenteditable="true"
+          data-placeholder="ここに物語を綴る……"
+          oninput="onEditorInput()"
+          onkeydown="handleEditorKey(event)">
+        </div>
+      </div>
+
+<!-- フレーズ参照ドロワー -->
+      <div id="phrase-drawer">
+        <div id="phrase-drawer-header">
+          <div id="phrase-drawer-title">📜 フレーズ蒐集帖</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <a href="https://ms-okada109.github.io/phrase-database/" target="_blank" id="phrase-drawer-extlink" title="別タブで開く" style="font-size:11px;color:var(--ink-light);opacity:0.5;text-decoration:none;transition:opacity 0.15s;">↗</a>
+            <button id="phrase-drawer-close" onclick="togglePhraseDrawer()">✕</button>
+          </div>
+        </div>
+        <iframe
+          id="phrase-drawer-iframe"
+          src="https://ms-okada109.github.io/phrase-database/"
+          style="flex:1;border:none;width:100%;background:var(--paper-warm);"
+          title="フレーズ蒐集帖"
+          onerror="showIframeError()"
+        ></iframe>
+        <div id="phrase-iframe-error" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;gap:12px;font-size:13px;color:var(--ink-light);opacity:0.7;line-height:1.9;">
+          <span style="font-size:32px;">🚫</span>
+          <span>埋め込みがブロックされました</span>
+          <a href="https://ms-okada109.github.io/phrase-database/" target="_blank"
+            style="padding:8px 16px;background:var(--accent);color:white;border-radius:6px;text-decoration:none;font-size:13px;">
+            別タブで開く ↗
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- アイデア帳 -->
+    <div class="panel notes-panel" id="panel-ideas">
+      <div class="notes-header">💡 アイデア帳</div>
+
+      <!-- ツールバー -->
+      <div class="idea-toolbar">
+        <input id="idea-search" type="text" class="idea-search-input" placeholder="🔍 アイデアを検索…" oninput="renderIdeas()">
+        <button class="notes-add-btn" onclick="addIdea()">＋ アイデアを追加</button>
+      </div>
+
+      <!-- タグフィルター -->
+      <div id="idea-tag-filter-wrap">
+        <span class="tag-filter-pill active" data-tag="__all__" onclick="selectIdeaTag('__all__',this)">すべて</span>
+      </div>
+
+      <div class="card-grid" id="idea-grid"></div>
+    </div>
+
+    <!-- フレーズ蒐集帖 -->
+    <div class="panel notes-panel" id="panel-phrases">
+      <div class="notes-header">📜 フレーズ蒐集帖</div>
+
+      <div class="idea-toolbar">
+        <input id="phrase-search" type="text" class="idea-search-input" placeholder="🔍 フレーズを検索…" oninput="renderPhrases()">
+        <button class="notes-add-btn" onclick="addPhrase()">＋ フレーズを追加</button>
+      </div>
+
+      <!-- タグフィルター -->
+      <div id="phrase-tag-filter-wrap">
+        <span class="tag-filter-pill active" data-tag="__all__" onclick="selectPhraseTag('__all__',this)">すべて</span>
+      </div>
+
+      <div class="card-grid" id="phrase-grid"></div>
+    </div>
+
+    <!-- 人物ノート -->
+    <div class="panel notes-panel" id="panel-characters">
+      <div><div class="notes-header">👤 人物ノート</div>
+      <div style="margin-top:14px;"><button class="notes-add-btn" onclick="addCharacter()">＋ 人物を追加</button></div></div>
+      <div id="char-list" style="display:flex;flex-direction:column;gap:12px;"></div>
+    </div>
+
+    <!-- ボツコーナー -->
+    <div class="panel notes-panel" id="panel-botsu">
+      <div><div class="notes-header">🗑 ボツコーナー</div>
+      <div style="margin-top:14px;"><button class="notes-add-btn" onclick="addBotsu()">＋ ボツ原稿を追加</button></div></div>
+      <div class="card-grid" id="botsu-grid"></div>
+    </div>
+
+    <!-- スタンプ帳 -->
+    <div class="panel notes-panel" id="panel-stamp">
+      <div class="notes-header">📅 スタンプ帳 &amp; 執筆の芽</div>
+
+      <!-- Pet showcase -->
+      <div id="pet-showcase">
+        <div id="pet-big">🌱</div>
+        <div class="pet-info-block">
+          <h3 id="pet-showcase-name">執筆の芽 <span id="pet-showcase-lv" style="font-size:13px;opacity:0.6;">Lv.1</span></h3>
+          <p id="pet-showcase-desc">毎日書いて育てよう。文字を綴るほど大きく成長するよ！</p>
+          <div id="pet-xp-bar-wrap"><div id="pet-xp-bar" style="width:0%"></div></div>
+          <div class="pet-xp-label" id="pet-xp-label">0 / 500 字</div>
+        </div>
+      </div>
+
+      <!-- Goal setter -->
+      <div id="goal-setter">
+        <label for="goal-input">📝 1日の目標文字数</label>
+        <input id="goal-input" type="number" min="100" max="100000" step="100" value="1000"
+          onchange="setGoal(this.value)" placeholder="1000">
+        <span style="font-size:12px;color:var(--ink-light);opacity:0.5;">字</span>
+      </div>
+
+      <!-- Stats -->
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-val" id="stat-total">0</div>
+          <div class="stat-label">総文字数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-today">0</div>
+          <div class="stat-label">今日の文字数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-streak">0</div>
+          <div class="stat-label">連続ログイン日</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-days">0</div>
+          <div class="stat-label">スタンプ数</div>
+        </div>
+      </div>
+
+      <!-- Stamp grid -->
+      <div>
+        <div style="font-size:13px;color:var(--ink-light);opacity:0.6;margin-bottom:10px;letter-spacing:0.1em;">過去90日のスタンプ</div>
+        <div id="stamp-grid"></div>
+      </div>
+    </div>
+
+    <!-- 検索結果 -->
+    <div class="panel" id="panel-search">
+      <div id="search-results"></div>
+    </div>
+  </div>
+</div>
+
+<!-- フォーカス脱出ボタン -->
+<button id="focus-escape" onclick="toggleFocus()">フォーカス解除 (F)</button>
+
+<!-- 添削モーダル -->
+<div id="modal-overlay">
+  <div class="modal">
+    <h2>✦ 添削する</h2>
+    <div class="modal-section">
+      <div class="modal-label">AIサービス</div>
+      <select id="api-service" class="modal-input">
+        <option value="claude">Claude (Anthropic)</option>
+        <option value="gemini">Gemini (Google)</option>
+      </select>
+    </div>
+    <div class="modal-section">
+      <div class="modal-label">APIキー <span style="opacity:0.45;font-size:10px;">（ブラウザ内のみ・保存されません）</span></div>
+      <input type="password" id="api-key-input" class="modal-input" placeholder="sk-ant-... または AIzaSy...">
+    </div>
+    <div class="modal-section">
+      <div class="modal-label">添削するテキスト</div>
+      <textarea id="modal-text-preview" class="modal-input" style="resize:vertical;min-height:110px;line-height:1.8;" placeholder="テキストを入力..."></textarea>
+    </div>
+    <div class="modal-section">
+      <div class="modal-label">添削指示（任意）</div>
+      <input type="text" id="proof-instruction" class="modal-input" placeholder="例：文体を統一して、読みやすくしてください">
+    </div>
+    <div id="modal-result"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeModal('modal-overlay')">閉じる</button>
+      <button class="modal-btn" id="copy-result-btn" onclick="copyResult()" style="display:none;">コピー</button>
+      <button class="modal-btn primary" id="proof-btn" onclick="runProof()">添削を実行</button>
+    </div>
+  </div>
+</div>
+
+<!-- スタンプポップアップ -->
+<div id="stamp-modal-overlay">
+  <div class="modal" style="max-width:340px;text-align:center;">
+    <div id="stamp-popup-inner">
+      <span id="stamp-popup-emoji">🌱</span>
+      <div id="stamp-popup-msg">今日も執筆できた！</div>
+      <div id="stamp-popup-sub"></div>
+    </div>
+    <div class="modal-actions" style="justify-content:center;margin-top:20px;">
+      <button class="modal-btn primary" onclick="closeModal('stamp-modal-overlay')">やる気が出た！</button>
+    </div>
+  </div>
+</div>
+
+<!-- 書き出しモーダル -->
+<div id="export-modal-overlay">
+  <div class="modal" style="max-width:400px;">
+    <h2>書き出し</h2>
+    <div class="export-option" onclick="exportTxt()">
+      <span class="eo-icon">📄</span>
+      <div><h4>テキスト (.txt)</h4><p>全章をまとめてテキストファイルに</p></div>
+    </div>
+    <div class="export-option" onclick="exportJSON()">
+      <span class="eo-icon">📦</span>
+      <div><h4>バックアップ (.json)</h4><p>全データ（章・ノート）を保存・他ブラウザに移行</p></div>
+    </div>
+    <div class="export-option" onclick="importJSON()">
+      <span class="eo-icon">📥</span>
+      <div><h4>バックアップを読み込む</h4><p>JSONファイルからデータを復元</p></div>
+    </div>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="doImport(this)">
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeModal('export-modal-overlay')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- Gist同期モーダル -->
+<div id="gist-modal-overlay" style="position:fixed;inset:0;background:rgba(26,16,8,0.55);display:none;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(3px);">
+  <div class="modal" style="max-width:460px;">
+    <h2>☁ GitHub Gist 同期</h2>
+
+    <div class="modal-section">
+      <div class="modal-label">GitHub Personal Access Token <span style="opacity:0.45;font-size:10px;">（gistスコープのみでOK）</span></div>
+      <input type="password" id="gist-token-input" class="modal-input" placeholder="ghp_xxxxxxxxxxxx">
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Gist ID <span style="opacity:0.45;font-size:10px;">（2台目以降：1台目で作成したIDを入力）</span></div>
+      <input type="text" id="gist-id-input" class="modal-input" placeholder="空欄なら新規作成">
+    </div>
+
+    <div id="gist-id-result-wrap" style="display:none;padding:12px;background:var(--paper-warm);border-radius:6px;margin-top:8px;">
+      <div style="font-size:11px;color:var(--ink-light);opacity:0.6;margin-bottom:4px;">📋 作成されたGist ID（2台目に入力してください）</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <code id="gist-id-result" style="font-size:14px;color:var(--accent);flex:1;"></code>
+        <button class="modal-btn" onclick="navigator.clipboard.writeText(document.getElementById('gist-id-result').textContent).then(()=>toast('コピーしました'))">コピー</button>
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--ink-light);opacity:0.55;line-height:1.9;margin-top:8px;padding:10px;background:var(--paper-warm);border-radius:6px;">
+      <b>使い方：</b><br>
+      1台目 → トークンを入力して「接続する」→ Gist IDが発行される<br>
+      2台目 → トークンとGist IDを両方入力して「接続する」
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeModal('gist-modal-overlay')">閉じる</button>
+      <button class="modal-btn" onclick="disconnectGist()" style="color:var(--red);">同期解除</button>
+      <button class="modal-btn primary" id="gist-save-btn" onclick="setupGist()">接続する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let state = {
+  chapters: [],
+  activeChapter: null,
+  ideas: [],
+  characters: [],
+  botsu: [],
+  goal: 1000,
+  dark: false,
+  fontSize: 17,
+  stamps: {},      // { 'YYYY-MM-DD': { emoji, count } }
+  totalCharsEver: 0,
+};
+
+// Pet levels
+const PET_STAGES = [
+  { lv:1, emoji:'🌱', name:'執筆の芽',   desc:'毎日書いて育てよう！',           threshold:0 },
+  { lv:2, emoji:'🪴', name:'育ちざかり', desc:'文字を積み重ねて成長中…',         threshold:2000 },
+  { lv:3, emoji:'🌿', name:'若葉',       desc:'だいぶ形になってきた！',           threshold:6000 },
+  { lv:4, emoji:'🌳', name:'大樹',       desc:'立派な作家の息吹を感じる。',       threshold:15000 },
+  { lv:5, emoji:'🌸', name:'花咲く木',   desc:'美しい物語の花が咲いている。',     threshold:30000 },
+  { lv:6, emoji:'✨', name:'伝説の書き手',desc:'あなたの言葉は光り輝いている！',  threshold:60000 },
+];
+
+const STAMP_EMOJIS = ['✍️','📖','🖊️','📝','🌟','💫','🔥','🎯','💎','🏆'];
+
+// ── GIST SYNC ──
+let gistToken = localStorage.getItem('tsuduri_gist_token') || '';
+let gistId    = localStorage.getItem('tsuduri_gist_id')    || '';
+const GIST_FILENAME = 'tsuduri_data.json';
+
+function loadState() {
+  try {
+    const s = localStorage.getItem('tsuduri_v2');
+    if (s) state = { ...state, ...JSON.parse(s) };
+  } catch(e) {}
+}
+
+let saveTimer;
+function saveState() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    // LocalStorageに即保存
+    localStorage.setItem('tsuduri_v2', JSON.stringify(state));
+    const el = document.getElementById('save-indicator');
+
+    // Gistが設定されていればクラウドにも保存
+    if (gistToken && gistId) {
+      el.textContent = '☁ 同期中…';
+      const ok = await pushToGist();
+      el.textContent = ok ? '☁ 同期済 ✓' : '⚠ 同期失敗';
+    } else {
+      el.textContent = '保存 ✓';
+    }
+    setTimeout(() => el.textContent = '', 2000);
+  }, 800);
+}
+
+async function pushToGist() {
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${gistToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        files: { [GIST_FILENAME]: { content: JSON.stringify(state) } }
+      })
+    });
+    return res.ok;
+  } catch(e) { return false; }
+}
+
+async function pullFromGist() {
+  if (!gistToken || !gistId) return false;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { 'Authorization': `Bearer ${gistToken}` }
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    const content = data.files?.[GIST_FILENAME]?.content;
+    if (!content) return false;
+    const remote = JSON.parse(content);
+    state = { ...state, ...remote };
+    localStorage.setItem('tsuduri_v2', JSON.stringify(state));
+    return true;
+  } catch(e) { return false; }
+}
+
+async function createGist() {
+  try {
+    const res = await fetch('https://api.github.com/gists', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${gistToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        description: '綴り — 小説執筆アプリ データ',
+        public: false,
+        files: { [GIST_FILENAME]: { content: JSON.stringify(state) } }
+      })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.id;
+  } catch(e) { return null; }
+}
+
+async function setupGist() {
+  const token = document.getElementById('gist-token-input').value.trim();
+  const existingId = document.getElementById('gist-id-input').value.trim();
+  if (!token) { toast('トークンを入力してください'); return; }
+
+  const btn = document.getElementById('gist-save-btn');
+  btn.textContent = '接続中…'; btn.disabled = true;
+
+  gistToken = token;
+  localStorage.setItem('tsuduri_gist_token', token);
+
+  if (existingId) {
+    // 既存GistIDを使う
+    gistId = existingId;
+    localStorage.setItem('tsuduri_gist_id', gistId);
+    const ok = await pullFromGist();
+    if (ok) {
+      toast('☁ Gistからデータを読み込みました！');
+      closeModal('gist-modal-overlay');
+      location.reload();
+    } else {
+      toast('⚠ Gist IDが見つかりません。確認してください');
+    }
+  } else {
+    // 新規Gist作成
+    const id = await createGist();
+    if (id) {
+      gistId = id;
+      localStorage.setItem('tsuduri_gist_id', gistId);
+      document.getElementById('gist-id-result').textContent = id;
+      document.getElementById('gist-id-result-wrap').style.display = 'block';
+      toast('☁ Gistを作成しました！IDを控えておいてください');
+    } else {
+      toast('⚠ Gist作成に失敗しました。トークンを確認してください');
+    }
+  }
+
+  btn.textContent = '接続する'; btn.disabled = false;
+  updateGistStatus();
+}
+
+function updateGistStatus() {
+  const el = document.getElementById('gist-status');
+  if (!el) return;
+  if (gistToken && gistId) {
+    el.innerHTML = `<span style="color:var(--green)">☁ Gist同期ON</span> <span style="font-size:10px;opacity:0.5;">${gistId.slice(0,8)}…</span>`;
+  } else {
+    el.innerHTML = `<span style="opacity:0.4;">☁ Gist未設定</span>`;
+  }
+}
+
+function disconnectGist() {
+  if (!confirm('Gist同期を解除しますか？（データは消えません）')) return;
+  gistToken = ''; gistId = '';
+  localStorage.removeItem('tsuduri_gist_token');
+  localStorage.removeItem('tsuduri_gist_id');
+  toast('Gist同期を解除しました');
+  updateGistStatus();
+  closeModal('gist-modal-overlay');
+}
+
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+function today() { return new Date().toISOString().slice(0,10); }
+
+// ═══════════════════════════════════════════
+// PANEL STATE (must be declared before INIT)
+// ═══════════════════════════════════════════
+let currentPanel = 'editor';
+let activeIdeaTag = '__all__';
+let activePhraseTag = '__all__';
+let drawerFilterTag = '__all__';
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+loadState();
+if (state.dark) document.body.classList.add('dark');
+document.getElementById('font-slider').value = state.fontSize || 17;
+document.getElementById('editor').style.fontSize = (state.fontSize || 17) + 'px';
+document.getElementById('goal-input').value = state.goal || 1000;
+
+if (!state.chapters || state.chapters.length === 0) {
+  addChapter('第1章', true);
+} else {
+  renderChapterList();
+  loadChapter(state.activeChapter || state.chapters[0].id);
+}
+renderIdeas();
+renderPhrases();
+renderCharacters();
+renderBotsu();
+updatePet();
+doLoginStamp();
+renderStampGrid();
+updateGistStatus();
+
+// 起動時にGistから最新データを取得
+if (gistToken && gistId) {
+  pullFromGist().then(ok => {
+    if (ok) {
+      // データ再描画
+      renderChapterList();
+      loadChapter(state.activeChapter || state.chapters[0]?.id);
+      renderIdeas(); renderPhrases(); renderCharacters(); renderBotsu();
+      updatePet(); renderStampGrid();
+      toast('☁ Gistから最新データを読み込みました');
+    }
+  });
+}
+
+// 10分ごと自動バックアップ
+setInterval(() => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  const now = new Date();
+  const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  a.href = URL.createObjectURL(blob);
+  a.download = `綴り_自動バックアップ_${ts}.json`;
+  a.click();
+  toast('💾 自動バックアップを保存しました');
+}, 10 * 60 * 1000);
+checkBackupWarning();
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'F' && !e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement.id !== 'editor' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') toggleFocus();
+  if (e.key === 'Escape') {
+    if (document.body.classList.contains('focus-mode')) toggleFocus();
+  }
+});
+
+// ═══════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('toggle-sidebar');
+  sb.classList.toggle('collapsed');
+  btn.textContent = sb.classList.contains('collapsed') ? '▶' : '◀';
+}
+
+// ═══════════════════════════════════════════
+// PANEL SWITCH
+// ═══════════════════════════════════════════
+function switchPanel(name, el) {
+  if (name === currentPanel && name !== 'stamp') return;
+  currentPanel = name;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const titles = { editor:'本編エディタ', ideas:'アイデア帳', characters:'人物ノート', botsu:'ボツコーナー', stamp:'スタンプ帳', search:'検索結果', phrases:'フレーズ蒐集帖' };
+  document.getElementById('panel-title').textContent = titles[name] || name;
+  if (name === 'stamp') { updatePet(); renderStampGrid(); updateStats(); }
+  if (name === 'phrases') { renderPhrases(); }
+  const showCount = name === 'editor';
+  document.getElementById('char-count-wrap').style.opacity = showCount ? '1' : '0.3';
+}
+
+// ═══════════════════════════════════════════
+// CHAPTERS (with drag-and-drop + rename)
+// ═══════════════════════════════════════════
+let dragSrc = null;
+
+function addChapter(title, silent) {
+  const ch = { id: uid(), title: title || `第${state.chapters.length + 1}章`, content: '' };
+  state.chapters.push(ch);
+  if (!silent) saveState();
+  renderChapterList();
+  switchPanel('editor', document.querySelector('.nav-item[data-panel="editor"]'));
+  loadChapter(ch.id);
+}
+
+function renderChapterList() {
+  const list = document.getElementById('chapter-list');
+  list.innerHTML = '';
+  state.chapters.forEach((ch, i) => {
+    const div = document.createElement('div');
+    div.className = 'chapter-item' + (ch.id === state.activeChapter ? ' active' : '');
+    div.draggable = true;
+    div.dataset.id = ch.id;
+
+    div.innerHTML = `
+      <span class="ch-drag" title="ドラッグで並べ替え">⠿</span>
+      <input class="ch-title-input" value="${esc(ch.title)}"
+        readonly
+        onclick="selectChapter('${ch.id}', event)"
+        ondblclick="startRename(this)"
+        onblur="endRename(this,'${ch.id}')"
+        onkeydown="renameKey(event,this,'${ch.id}')">
+      <span class="ch-del" onclick="deleteChapter('${ch.id}',event)" title="削除">✕</span>
+    `;
+
+    // Drag events
+    div.addEventListener('dragstart', e => { dragSrc = ch.id; e.dataTransfer.effectAllowed = 'move'; div.style.opacity = '0.5'; });
+    div.addEventListener('dragend', () => { div.style.opacity = ''; document.querySelectorAll('.chapter-item').forEach(d => d.classList.remove('drag-over')); });
+    div.addEventListener('dragover', e => { e.preventDefault(); div.classList.add('drag-over'); });
+    div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      div.classList.remove('drag-over');
+      if (dragSrc === ch.id) return;
+      const fromIdx = state.chapters.findIndex(c => c.id === dragSrc);
+      const toIdx = state.chapters.findIndex(c => c.id === ch.id);
+      const [moved] = state.chapters.splice(fromIdx, 1);
+      state.chapters.splice(toIdx, 0, moved);
+      saveState(); renderChapterList();
+    });
+
+    list.appendChild(div);
+  });
+}
+
+function selectChapter(id, e) {
+  const input = e.target;
+  if (!input.readOnly) return;
+  switchPanel('editor', document.querySelector('.nav-item[data-panel="editor"]'));
+  loadChapter(id);
+}
+
+function startRename(input) {
+  if (state.chapters.find(c => c.id === state.activeChapter)?.id === input.closest('.chapter-item').dataset.id) {
+    input.readOnly = false;
+    input.focus();
+    input.select();
+  }
+}
+
+function endRename(input, id) {
+  input.readOnly = true;
+  const ch = state.chapters.find(c => c.id === id);
+  if (ch && input.value.trim()) { ch.title = input.value.trim(); saveState(); }
+}
+
+function renameKey(e, input, id) {
+  if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+  if (e.key === 'Escape') { input.readOnly = true; }
+}
+
+function loadChapter(id) {
+  const ch = state.chapters.find(c => c.id === id);
+  if (!ch) return;
+  state.activeChapter = id;
+  document.getElementById('editor').textContent = ch.content;
+  updateCharCount();
+  renderChapterList();
+  // ドロワーが開いていたら更新
+  drawerFilterTag = '__all__';
+  if (document.getElementById('phrase-drawer').classList.contains('open')) renderPhraseDrawer();
+}
+
+function deleteChapter(id, e) {
+  e.stopPropagation();
+  if (state.chapters.length <= 1) { toast('最低1章は必要です'); return; }
+  if (!confirm('この章を削除しますか？')) return;
+  state.chapters = state.chapters.filter(c => c.id !== id);
+  if (state.activeChapter === id) { loadChapter(state.chapters[0].id); }
+  saveState(); renderChapterList();
+}
+
+// ═══════════════════════════════════════════
+// EDITOR
+// ═══════════════════════════════════════════
+let editorSnapshot = 0;
+
+function onEditorInput() {
+  const ch = state.chapters.find(c => c.id === state.activeChapter);
+  if (ch) {
+    ch.content = document.getElementById('editor').textContent;
+    saveState();
+  }
+  updateCharCount();
+  updateTodayCount();
+  checkAutoBackup();
+}
+
+function checkBackupWarning() {
+  const last = state.lastManualBackupDate;
+  if (!last) return; // 一度もバックアップしていない場合は警告しない（初回ユーザー）
+  const daysSince = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+  if (daysSince >= 7) {
+    setTimeout(() => {
+      toast(`⚠️ 最後のバックアップから${daysSince}日経っています。書き出しから保存を！`, 4000);
+    }, 1500);
+  }
+}
+
+const AUTO_BACKUP_INTERVAL = 5000; // 5000字ごと
+
+function checkAutoBackup() {
+  const total = getTotalChars();
+  const lastBackup = state.lastBackupAt || 0;
+  const diff = total - lastBackup;
+
+  if (diff >= AUTO_BACKUP_INTERVAL) {
+    state.lastBackupAt = total;
+    saveState();
+    doAutoBackup(total);
+  }
+}
+
+function doAutoBackup(total) {
+  const filename = `綴り_自動バックアップ_${today()}_${total.toLocaleString()}字.json`;
+  dl(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }), filename);
+  showAutoBackupToast(total);
+}
+
+function showAutoBackupToast(total) {
+  const el = document.getElementById('toast');
+  el.innerHTML = `💾 ${total.toLocaleString()}字達成！自動バックアップを保存しました`;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function handleEditorKey(e) {
+  if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '　　'); }
+}
+
+function setFontSize(v) {
+  state.fontSize = parseInt(v);
+  document.getElementById('editor').style.fontSize = v + 'px';
+  saveState();
+}
+
+function updateCharCount() {
+  const text = document.getElementById('editor').textContent;
+  const count = text.replace(/\s/g, '').length;
+  document.getElementById('char-count').textContent = count.toLocaleString() + ' 字';
+
+  const goal = state.goal || 1000;
+  const todayCount = getTodayWritten();
+  const pct = Math.min(100, (todayCount / goal) * 100);
+  document.getElementById('goal-bar').style.width = pct + '%';
+  const rem = Math.max(0, goal - todayCount);
+  document.getElementById('char-goal-info').textContent = rem > 0 ? `目標まであと ${rem.toLocaleString()} 字` : '🎉 目標達成！';
+
+  updatePet();
+}
+
+// ═══════════════════════════════════════════
+// TODAY TRACKING
+// ═══════════════════════════════════════════
+function getTotalChars() {
+  return state.chapters.reduce((sum, ch) => sum + (ch.content.replace(/\s/g,'').length), 0);
+}
+
+function getTodayWritten() {
+  const td = today();
+  return (state.stamps[td] || {}).count || 0;
+}
+
+function updateTodayCount() {
+  // Update today's count in stamps (accumulate based on total)
+  const td = today();
+  const total = getTotalChars();
+  const prev = state.stamps[td]?.baseTotal || 0;
+  const diff = Math.max(0, total - prev);
+  if (!state.stamps[td]) state.stamps[td] = { emoji: getStampEmoji(), count: 0, baseTotal: total };
+  // Only grow today count, never shrink
+  state.stamps[td].count = Math.max(state.stamps[td].count, diff);
+  saveState();
+}
+
+function getStampEmoji() {
+  const count = Object.keys(state.stamps).length;
+  return STAMP_EMOJIS[count % STAMP_EMOJIS.length];
+}
+
+// ═══════════════════════════════════════════
+// LOGIN STAMP
+// ═══════════════════════════════════════════
+function doLoginStamp() {
+  const td = today();
+  if (state.stamps[td]) return; // Already stamped today
+
+  const total = getTotalChars();
+  state.stamps[td] = { emoji: getStampEmoji(), count: 0, baseTotal: total };
+  saveState();
+
+  // Show popup after short delay
+  setTimeout(() => showStampPopup(), 800);
+}
+
+function showStampPopup() {
+  const streak = calcStreak();
+  const pet = getPetStage();
+  document.getElementById('stamp-popup-emoji').textContent = pet.emoji;
+  document.getElementById('stamp-popup-msg').textContent = `${streak}日連続ログイン！`;
+  document.getElementById('stamp-popup-sub').textContent = `${pet.name}が喜んでいる！今日も執筆を続けよう ✒`;
+  document.getElementById('stamp-modal-overlay').classList.add('show');
+}
+
+function calcStreak() {
+  let streak = 0;
+  const d = new Date();
+  while (true) {
+    const key = d.toISOString().slice(0,10);
+    if (state.stamps[key]) { streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+
+// ═══════════════════════════════════════════
+// PET / GROWTH
+// ═══════════════════════════════════════════
+function getPetStage() {
+  const total = getTotalChars();
+  let stage = PET_STAGES[0];
+  for (const s of PET_STAGES) { if (total >= s.threshold) stage = s; }
+  return stage;
+}
+
+function updatePet() {
+  const total = getTotalChars();
+  const stage = getPetStage();
+  const nextStage = PET_STAGES[stage.lv] || null;
+
+  // Sidebar mini
+  document.getElementById('pet-emoji').textContent = stage.emoji;
+  document.getElementById('pet-name').textContent = stage.name;
+  document.getElementById('pet-level').textContent = `Lv.${stage.lv}`;
+
+  let pct = 0;
+  if (nextStage) {
+    pct = Math.min(100, ((total - stage.threshold) / (nextStage.threshold - stage.threshold)) * 100);
+  } else { pct = 100; }
+  document.getElementById('pet-bar').style.width = pct + '%';
+
+  // Showcase (stamp panel)
+  document.getElementById('pet-big').textContent = stage.emoji;
+  document.getElementById('pet-showcase-name').childNodes[0].textContent = stage.name + ' ';
+  document.getElementById('pet-showcase-lv').textContent = `Lv.${stage.lv}`;
+  document.getElementById('pet-showcase-desc').textContent = stage.desc;
+  document.getElementById('pet-xp-bar').style.width = pct + '%';
+  document.getElementById('pet-xp-label').textContent = nextStage
+    ? `${total.toLocaleString()} / ${nextStage.threshold.toLocaleString()} 字 (次のレベルまで ${(nextStage.threshold-total).toLocaleString()} 字)`
+    : '最大レベル到達！おめでとう🎉';
+}
+
+// ═══════════════════════════════════════════
+// STAMP GRID (90 days)
+// ═══════════════════════════════════════════
+function renderStampGrid() {
+  const grid = document.getElementById('stamp-grid');
+  grid.innerHTML = '';
+  const td = today();
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0,10);
+    const cell = document.createElement('div');
+    const stamp = state.stamps[key];
+    cell.className = 'stamp-cell' + (stamp ? '' : ' empty') + (key === td ? ' today' : '');
+    cell.title = key + (stamp ? ` （${stamp.count.toLocaleString()}字）` : '');
+
+    if (stamp) {
+      const goal = state.goal || 1000;
+      // Emoji grows with character count
+      const ratio = Math.min(1, stamp.count / goal);
+      const size = 14 + Math.round(ratio * 14); // 14px → 28px
+      cell.innerHTML = `<span style="font-size:${size}px">${stamp.emoji}</span>`;
+    } else {
+      cell.innerHTML = '·';
+    }
+
+    const dateEl = document.createElement('span');
+    dateEl.className = 'stamp-date';
+    dateEl.textContent = d.getDate();
+    cell.appendChild(dateEl);
+    grid.appendChild(cell);
+  }
+}
+
+function updateStats() {
+  const total = getTotalChars();
+  const streak = calcStreak();
+  const days = Object.keys(state.stamps).length;
+  const todayC = getTodayWritten();
+  document.getElementById('stat-total').textContent = total.toLocaleString();
+  document.getElementById('stat-today').textContent = todayC.toLocaleString();
+  document.getElementById('stat-streak').textContent = streak;
+  document.getElementById('stat-days').textContent = days;
+}
+
+function setGoal(v) {
+  state.goal = parseInt(v) || 1000;
+  saveState();
+  updateCharCount();
+}
+
+// ═══════════════════════════════════════════
+// IDEAS（タグ付きアイデア帳）
+// ═══════════════════════════════════════════
+function addIdea() {
+  state.ideas.unshift({ id: uid(), title: '', body: '', tags: [], date: today() });
+  saveState(); renderIdeas();
+}
+
+function getAllIdeaTags() {
+  const set = new Set();
+  state.ideas.forEach(i => (i.tags||[]).forEach(t => set.add(t)));
+  return [...set].sort();
+}
+
+function selectIdeaTag(tag, el) {
+  activeIdeaTag = tag;
+  document.querySelectorAll('#idea-tag-filter-wrap .tag-filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderIdeas();
+}
+
+function renderIdeas() {
+  const grid = document.getElementById('idea-grid');
+  const q = (document.getElementById('idea-search')?.value || '').trim().toLowerCase();
+  const allTags = getAllIdeaTags();
+
+  // Rebuild tag filter bar
+  const filterWrap = document.getElementById('idea-tag-filter-wrap');
+  filterWrap.innerHTML = `<span class="tag-filter-pill ${activeIdeaTag==='__all__'?'active':''}" data-tag="__all__" onclick="selectIdeaTag('__all__',this)">すべて</span>`;
+  allTags.forEach(tag => {
+    const pill = document.createElement('span');
+    pill.className = 'tag-filter-pill' + (activeIdeaTag===tag?' active':'');
+    pill.textContent = '#' + tag;
+    pill.onclick = function(){ selectIdeaTag(tag, this); };
+    filterWrap.appendChild(pill);
+  });
+
+  let ideas = state.ideas;
+  if (activeIdeaTag !== '__all__') ideas = ideas.filter(i => (i.tags||[]).includes(activeIdeaTag));
+  if (q) ideas = ideas.filter(i => i.title.toLowerCase().includes(q) || i.body.toLowerCase().includes(q) || (i.tags||[]).some(t=>t.includes(q)));
+
+  grid.innerHTML = '';
+  if (!ideas.length) {
+    grid.innerHTML = '<div class="empty-state"><span class="es-icon">💡</span><span>アイデアを追加してみよう</span></div>';
+    return;
+  }
+  ideas.forEach(idea => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    // Check if any tags match phrase categories
+    const matchingPhraseTags = (idea.tags||[]).filter(t => state.phrases && state.phrases.some(p=>(p.tags||[]).includes(t)));
+
+    card.innerHTML = `
+      <input class="card-title" placeholder="アイデアのタイトル" value="${esc(idea.title)}" oninput="updateIdea('${idea.id}','title',this.value)">
+      <textarea class="card-body" placeholder="メモ……" oninput="updateIdea('${idea.id}','body',this.value)">${esc(idea.body)}</textarea>
+      <div class="card-tags" id="idea-tags-${idea.id}">
+        ${(idea.tags||[]).map(t=>`<span class="card-tag-chip">#${esc(t)}<button class="chip-del" onclick="removeIdeaTag('${idea.id}','${esc(t)}')">×</button></span>`).join('')}
+        <input class="card-tag-input" placeholder="＋ タグ" onkeydown="addIdeaTagKey(event,'${idea.id}',this)">
+      </div>
+      ${matchingPhraseTags.length ? `<div>${matchingPhraseTags.map(t=>`<button class="phrase-link-btn" onclick="openPhrasesByTag('${esc(t)}')">📜 「${esc(t)}」のフレーズを見る →</button>`).join('')}</div>` : ''}
+      <div class="card-meta">${idea.date||''}</div>
+      <button class="card-del" onclick="deleteIdea('${idea.id}')">✕</button>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function addIdeaTagKey(e, id, input) {
+  if (e.key === 'Enter' || e.key === ',' || e.key === '　') {
+    e.preventDefault();
+    const tag = input.value.trim().replace(/^#/,'').replace(/,/g,'');
+    if (!tag) return;
+    const idea = state.ideas.find(i=>i.id===id);
+    if (!idea) return;
+    if (!idea.tags) idea.tags = [];
+    if (!idea.tags.includes(tag)) { idea.tags.push(tag); saveState(); }
+    input.value = '';
+    renderIdeas();
+  }
+}
+
+function removeIdeaTag(id, tag) {
+  const idea = state.ideas.find(i=>i.id===id);
+  if (!idea) return;
+  idea.tags = (idea.tags||[]).filter(t=>t!==tag);
+  saveState(); renderIdeas();
+}
+
+function updateIdea(id, f, v) { const x=state.ideas.find(i=>i.id===id); if(x){x[f]=v;saveState();} }
+function deleteIdea(id) { state.ideas=state.ideas.filter(x=>x.id!==id); saveState();renderIdeas(); }
+
+function openPhrasesByTag(tag) {
+  activePhraseTag = tag;
+  switchPanel('phrases', document.querySelector('.nav-item[data-panel="phrases"]'));
+}
+
+// ═══════════════════════════════════════════
+// PHRASE DRAWER（エディタ内フレーズ参照）
+// ═══════════════════════════════════════════
+function openPhraseDrawerFromSidebar() {
+  window.open('https://ms-okada109.github.io/phrase-database/', '_blank');
+}
+
+function togglePhraseDrawer() {  const drawer = document.getElementById('phrase-drawer');
+  const btn = document.getElementById('phrase-drawer-btn');
+  const isOpen = drawer.classList.toggle('open');
+  btn.classList.toggle('active', isOpen);
+  if (isOpen) { renderPhraseDrawer(); checkIframeLoad(); }
+}
+
+// 章にタグを持たせる（chapters に tags フィールドを追加）
+function getActiveChapter() {
+  return state.chapters.find(c => c.id === state.activeChapter);
+}
+
+function addChapterTagKey(e, input) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const tag = input.value.trim().replace(/^#/, '');
+  if (!tag) return;
+  const ch = getActiveChapter();
+  if (!ch) return;
+  if (!ch.tags) ch.tags = [];
+  if (!ch.tags.includes(tag)) { ch.tags.push(tag); saveState(); }
+  input.value = '';
+  renderPhraseDrawer();
+}
+
+function removeChapterTag(tag) {
+  const ch = getActiveChapter();
+  if (!ch) return;
+  ch.tags = (ch.tags || []).filter(t => t !== tag);
+  saveState();
+  renderPhraseDrawer();
+}
+
+function setDrawerFilter(tag, el) {
+  drawerFilterTag = tag;
+  document.querySelectorAll('.drawer-filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderPhraseDrawerList();
+}
+
+function renderPhraseDrawer() {
+  // iframeモードなので何もしない
+}
+
+function showIframeError() {
+  document.getElementById('phrase-drawer-iframe').style.display = 'none';
+  const err = document.getElementById('phrase-iframe-error');
+  err.style.display = 'flex';
+}
+
+// iframeブロック検知（タイムアウト方式）
+function checkIframeLoad() {
+  const iframe = document.getElementById('phrase-drawer-iframe');
+  if (!iframe) return;
+  let loaded = false;
+  iframe.onload = () => { loaded = true; };
+  setTimeout(() => {
+    try {
+      // クロスオリジンの場合アクセスしようとするとエラーが出る→正常読み込み
+      const _ = iframe.contentWindow.location.href;
+      // アクセスできた＝同一オリジン（ありえないので）
+    } catch(e) {
+      // クロスオリジンエラー＝iframeは読み込めている
+      loaded = true;
+    }
+    if (!loaded) showIframeError();
+  }, 5000);
+}
+
+function renderDrawerChapterTags() {
+  const ch = getActiveChapter();
+  const tags = ch?.tags || [];
+  const list = document.getElementById('drawer-chapter-tag-list');
+  list.innerHTML = tags.map(t =>
+    `<span class="drawer-chapter-tag">#${esc(t)}<button class="chip-del" onclick="removeChapterTag('${esc(t)}')">×</button></span>`
+  ).join('');
+
+  // Auto-match: if drawerFilterTag not in new tags, reset
+  if (drawerFilterTag !== '__all__' && tags.length > 0 && !tags.includes(drawerFilterTag)) {
+    drawerFilterTag = tags[0]; // auto-select first chapter tag
+  }
+}
+
+function renderDrawerFilterPills() {
+  const allPhraseTags = getAllPhraseTags();
+  const ch = getActiveChapter();
+  const chTags = ch?.tags || [];
+
+  const wrap = document.getElementById('drawer-filter-pills');
+  wrap.innerHTML = '';
+
+  // すべて
+  const all = document.createElement('span');
+  all.className = 'drawer-filter-pill' + (drawerFilterTag === '__all__' ? ' active' : '');
+  all.textContent = 'すべて';
+  all.onclick = function() { setDrawerFilter('__all__', this); };
+  wrap.appendChild(all);
+
+  // 章のタグを優先表示（関連フレーズがあるもの）
+  const chapterMatchTags = chTags.filter(t => allPhraseTags.includes(t));
+  const otherTags = allPhraseTags.filter(t => !chTags.includes(t));
+
+  chapterMatchTags.forEach(tag => {
+    const pill = document.createElement('span');
+    pill.className = 'drawer-filter-pill' + (drawerFilterTag === tag ? ' active' : '');
+    pill.innerHTML = `✦ #${esc(tag)}`;
+    pill.title = '章のタグと一致';
+    pill.style.borderColor = 'var(--accent-light)';
+    pill.onclick = function() { setDrawerFilter(tag, this); };
+    wrap.appendChild(pill);
+  });
+
+  otherTags.forEach(tag => {
+    const pill = document.createElement('span');
+    pill.className = 'drawer-filter-pill' + (drawerFilterTag === tag ? ' active' : '');
+    pill.textContent = '#' + tag;
+    pill.onclick = function() { setDrawerFilter(tag, this); };
+    wrap.appendChild(pill);
+  });
+
+  // 章にタグがあって一致するフレーズタグがあれば自動選択
+  if (drawerFilterTag === '__all__' && chapterMatchTags.length > 0) {
+    drawerFilterTag = chapterMatchTags[0];
+    wrap.querySelectorAll('.drawer-filter-pill').forEach(p => {
+      p.classList.toggle('active', p.textContent === `✦ #${chapterMatchTags[0]}` || p.textContent === `#${chapterMatchTags[0]}`);
+    });
+  }
+}
+
+function renderPhraseDrawerList() {
+  const list = document.getElementById('phrase-drawer-list');
+  let phrases = state.phrases || [];
+  if (drawerFilterTag !== '__all__') {
+    phrases = phrases.filter(p => (p.tags || []).includes(drawerFilterTag));
+  }
+
+  list.innerHTML = '';
+  if (!phrases.length) {
+    list.innerHTML = `<div class="drawer-empty">フレーズがありません<br><span style="font-size:11px">「フレーズ蒐集帖」で追加しよう</span></div>`;
+    return;
+  }
+
+  phrases.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'drawer-phrase-card';
+    card.innerHTML = `
+      ${p.title ? `<div class="dp-title">${esc(p.title)}</div>` : ''}
+      <div class="dp-body">${esc(p.body)}</div>
+      ${(p.tags||[]).length ? `<div class="dp-tags">${p.tags.map(t=>`<span class="dp-tag">#${esc(t)}</span>`).join('')}</div>` : ''}
+    `;
+    list.appendChild(card);
+  });
+}
+
+
+// ═══════════════════════════════════════════
+// PHRASES（フレーズ蒐集帖）
+// ═══════════════════════════════════════════
+function addPhrase() {
+  if (!state.phrases) state.phrases = [];
+  state.phrases.unshift({ id: uid(), title: '', body: '', tags: [], date: today() });
+  saveState(); renderPhrases();
+}
+
+function getAllPhraseTags() {
+  const set = new Set();
+  (state.phrases||[]).forEach(p => (p.tags||[]).forEach(t => set.add(t)));
+  return [...set].sort();
+}
+
+function selectPhraseTag(tag, el) {
+  activePhraseTag = tag;
+  document.querySelectorAll('#phrase-tag-filter-wrap .tag-filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderPhrases();
+}
+
+function renderPhrases() {
+  if (!state.phrases) state.phrases = [];
+  const grid = document.getElementById('phrase-grid');
+  const q = (document.getElementById('phrase-search')?.value || '').trim().toLowerCase();
+  const allTags = getAllPhraseTags();
+
+  // Rebuild tag filter bar
+  const filterWrap = document.getElementById('phrase-tag-filter-wrap');
+  filterWrap.innerHTML = `<span class="tag-filter-pill ${activePhraseTag==='__all__'?'active':''}" data-tag="__all__" onclick="selectPhraseTag('__all__',this)">すべて</span>`;
+  allTags.forEach(tag => {
+    const pill = document.createElement('span');
+    pill.className = 'tag-filter-pill' + (activePhraseTag===tag?' active':'');
+    pill.textContent = '#' + tag;
+    pill.onclick = function(){ selectPhraseTag(tag, this); };
+    filterWrap.appendChild(pill);
+  });
+
+  let phrases = state.phrases;
+  if (activePhraseTag !== '__all__') phrases = phrases.filter(p => (p.tags||[]).includes(activePhraseTag));
+  if (q) phrases = phrases.filter(p => p.title.toLowerCase().includes(q) || p.body.toLowerCase().includes(q) || (p.tags||[]).some(t=>t.includes(q)));
+
+  grid.innerHTML = '';
+  if (!phrases.length) {
+    grid.innerHTML = '<div class="empty-state"><span class="es-icon">📜</span><span>印象的なフレーズを保存しよう</span></div>';
+    return;
+  }
+  phrases.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'card phrase-card';
+    card.innerHTML = `
+      <input class="card-title" placeholder="出典・カテゴリ（例：人物描写）" value="${esc(p.title)}" oninput="updatePhrase('${p.id}','title',this.value)">
+      <textarea class="card-body" placeholder="フレーズを書き留める……" oninput="updatePhrase('${p.id}','body',this.value)">${esc(p.body)}</textarea>
+      <div class="card-tags">
+        ${(p.tags||[]).map(t=>`<span class="card-tag-chip">#${esc(t)}<button class="chip-del" onclick="removePhraseTag('${p.id}','${esc(t)}')">×</button></span>`).join('')}
+        <input class="card-tag-input" placeholder="＋ タグ" onkeydown="addPhraseTagKey(event,'${p.id}',this)">
+      </div>
+      <div class="card-meta">${p.date||''}</div>
+      <button class="card-del" onclick="deletePhrase('${p.id}')">✕</button>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function addPhraseTagKey(e, id, input) {
+  if (e.key === 'Enter' || e.key === ',' || e.key === '　') {
+    e.preventDefault();
+    const tag = input.value.trim().replace(/^#/,'').replace(/,/g,'');
+    if (!tag) return;
+    const p = state.phrases.find(x=>x.id===id);
+    if (!p) return;
+    if (!p.tags) p.tags = [];
+    if (!p.tags.includes(tag)) { p.tags.push(tag); saveState(); }
+    input.value = '';
+    renderPhrases();
+  }
+}
+
+function removePhraseTag(id, tag) {
+  const p = (state.phrases||[]).find(x=>x.id===id);
+  if (!p) return;
+  p.tags = (p.tags||[]).filter(t=>t!==tag);
+  saveState(); renderPhrases();
+}
+
+function updatePhrase(id, f, v) { const x=(state.phrases||[]).find(p=>p.id===id); if(x){x[f]=v;saveState();} }
+function deletePhrase(id) { state.phrases=(state.phrases||[]).filter(x=>x.id!==id); saveState();renderPhrases(); }
+
+
+// ═══════════════════════════════════════════
+// CHARACTERS
+// ═══════════════════════════════════════════
+const emojis = ['👤','👨','👩','🧑','👦','👧','🧔','👴','👵','🧙','🧛','🧚','🦸','🦹','🤴','👸','🐱','🐉','🤖'];
+function addCharacter() {
+  state.characters.unshift({ id: uid(), name: '', age: '', role: '', memo: '', emoji: '👤' });
+  saveState(); renderCharacters();
+}
+function renderCharacters() {
+  const list = document.getElementById('char-list');
+  list.innerHTML = '';
+  if (!state.characters.length) { list.innerHTML = '<div class="empty-state"><span class="es-icon">👤</span><span>人物を追加してみよう</span></div>'; return; }
+  state.characters.forEach(ch => {
+    const card = document.createElement('div');
+    card.className = 'char-card';
+    card.innerHTML = `
+      <div class="char-avatar" title="クリックで絵文字変更" onclick="cycleEmoji('${ch.id}',this)">${ch.emoji}</div>
+      <div class="char-info">
+        <input class="char-name" placeholder="名前" value="${esc(ch.name)}" oninput="updateChar('${ch.id}','name',this.value)">
+        <div class="char-field"><span class="char-label">年齢</span><input class="char-input" placeholder="—" value="${esc(ch.age)}" oninput="updateChar('${ch.id}','age',this.value)"></div>
+        <div class="char-field"><span class="char-label">役割</span><input class="char-input" placeholder="主人公・ヒロイン・敵…" value="${esc(ch.role)}" oninput="updateChar('${ch.id}','role',this.value)"></div>
+        <textarea class="char-memo" placeholder="性格・外見・設定メモ……" oninput="updateChar('${ch.id}','memo',this.value)">${esc(ch.memo)}</textarea>
+      </div>
+      <button class="card-del" onclick="deleteChar('${ch.id}')">✕</button>
+    `;
+    list.appendChild(card);
+  });
+}
+function cycleEmoji(id, el) {
+  const ch = state.characters.find(x=>x.id===id); if(!ch) return;
+  ch.emoji = emojis[(emojis.indexOf(ch.emoji)+1)%emojis.length];
+  el.textContent = ch.emoji; saveState();
+}
+function updateChar(id, f, v) { const x=state.characters.find(c=>c.id===id); if(x){x[f]=v;saveState();} }
+function deleteChar(id) { state.characters=state.characters.filter(x=>x.id!==id); saveState();renderCharacters(); }
+
+// ═══════════════════════════════════════════
+// BOTSU
+// ═══════════════════════════════════════════
+function addBotsu() {
+  state.botsu.unshift({ id: uid(), title: '', body: '', date: today() });
+  saveState(); renderBotsu();
+}
+function renderBotsu() {
+  const grid = document.getElementById('botsu-grid');
+  grid.innerHTML = '';
+  if (!state.botsu.length) { grid.innerHTML = '<div class="empty-state"><span class="es-icon">🗑</span><span>没にした原稿を保存しておこう</span></div>'; return; }
+  state.botsu.forEach(b => {
+    const card = document.createElement('div');
+    card.className = 'card botsu-card';
+    card.innerHTML = `
+      <div class="botsu-label">BOTSU</div>
+      <input class="card-title" placeholder="タイトル（ボツ理由など）" value="${esc(b.title)}" oninput="updateBotsu('${b.id}','title',this.value)">
+      <textarea class="card-body" placeholder="ボツ原稿……" oninput="updateBotsu('${b.id}','body',this.value)">${esc(b.body)}</textarea>
+      <div class="card-meta">${b.date||''}</div>
+      <button class="card-del" onclick="deleteBotsu('${b.id}')">✕</button>
+    `;
+    grid.appendChild(card);
+  });
+}
+function updateBotsu(id,f,v){const x=state.botsu.find(b=>b.id===id);if(x){x[f]=v;saveState();}}
+function deleteBotsu(id){state.botsu=state.botsu.filter(x=>x.id!==id);saveState();renderBotsu();}
+
+// ═══════════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════════
+let searchTimeout;
+function onSearch(q) {
+  clearTimeout(searchTimeout);
+  if (!q.trim()) {
+    if (currentPanel === 'search') switchPanel('editor', document.querySelector('.nav-item[data-panel="editor"]'));
+    return;
+  }
+  searchTimeout = setTimeout(() => doSearch(q.trim()), 250);
+}
+
+function doSearch(q) {
+  switchPanel('search', null);
+  document.getElementById('panel-title').textContent = `「${q}」の検索結果`;
+  const results = document.getElementById('search-results');
+  results.innerHTML = '';
+
+  const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+  let found = 0;
+  state.chapters.forEach(ch => {
+    const matches = [...ch.content.matchAll(re)];
+    if (!matches.length) return;
+    found++;
+    matches.slice(0,3).forEach(m => {
+      const start = Math.max(0, m.index - 40);
+      const end = Math.min(ch.content.length, m.index + q.length + 40);
+      let excerpt = ch.content.slice(start, end).replace(/\n/g,' ');
+      excerpt = excerpt.replace(re, `<mark>$&</mark>`);
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      item.innerHTML = `<div class="sr-chapter">${esc(ch.title)}</div><div class="sr-excerpt">…${excerpt}…</div>`;
+      item.onclick = () => { loadChapter(ch.id); switchPanel('editor', document.querySelector('.nav-item[data-panel="editor"]')); document.getElementById('search-box').value = ''; };
+      results.appendChild(item);
+    });
+  });
+  if (!found) results.innerHTML = '<div class="empty-state"><span class="es-icon">🔍</span><span>見つかりませんでした</span></div>';
+}
+
+// ═══════════════════════════════════════════
+// DARK MODE / FOCUS
+// ═══════════════════════════════════════════
+function toggleDark() {
+  state.dark = !state.dark;
+  document.body.classList.toggle('dark', state.dark);
+  saveState();
+}
+
+function toggleFocus() {
+  document.body.classList.toggle('focus-mode');
+  const f = document.body.classList.contains('focus-mode');
+  if (f) { toast('フォーカスモード — Escキーで解除'); }
+}
+
+// ═══════════════════════════════════════════
+// EXPORT / IMPORT
+// ═══════════════════════════════════════════
+function openExportModal() { document.getElementById('export-modal-overlay').classList.add('show'); }
+
+function exportTxt() {
+  const lines = state.chapters.map(ch => `【${ch.title}】\n\n${ch.content}`).join('\n\n---\n\n');
+  dl(new Blob([lines],{type:'text/plain;charset=utf-8'}), '小説.txt');
+  closeModal('export-modal-overlay');
+}
+
+function exportJSON() {
+  state.lastManualBackupDate = today();
+  saveState();
+  dl(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}), '綴り_バックアップ.json');
+  closeModal('export-modal-overlay');
+  toast('バックアップを保存しました ✓');
+}
+
+function importJSON() { document.getElementById('import-file').click(); }
+
+function doImport(input) {
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!imported.chapters) throw new Error('不正なファイル');
+      if (!confirm('現在のデータをすべて上書きしますか？')) return;
+      state = imported;
+      localStorage.setItem('tsuduri_v2', JSON.stringify(state));
+      location.reload();
+    } catch(err) { toast('読み込みエラー: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function dl(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name; a.click();
+}
+
+// ═══════════════════════════════════════════
+// PROOF (添削)
+// ═══════════════════════════════════════════
+function openProofModal() {
+  const ch = state.chapters.find(c=>c.id===state.activeChapter);
+  document.getElementById('modal-text-preview').value = ch ? ch.content : '';
+  document.getElementById('modal-result').style.display = 'none';
+  document.getElementById('copy-result-btn').style.display = 'none';
+  document.getElementById('proof-btn').textContent = '添削を実行';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+async function runProof() {
+  const apiKey = document.getElementById('api-key-input').value.trim();
+  const service = document.getElementById('api-service').value;
+  const text = document.getElementById('modal-text-preview').value.trim();
+  const instruction = document.getElementById('proof-instruction').value.trim();
+  if (!apiKey) { toast('APIキーを入力してください'); return; }
+  if (!text) { toast('テキストがありません'); return; }
+
+  const btn = document.getElementById('proof-btn');
+  btn.innerHTML = '<span class="spinner"></span>添削中…';
+  btn.disabled = true;
+  const resultEl = document.getElementById('modal-result');
+  resultEl.style.display = 'none';
+
+  const prompt = `あなたはプロの小説編集者です。以下の文章を丁寧に添削してください。\n${instruction?`添削指示: ${instruction}\n`:''}\n改善点を具体的に指摘し、修正案を提示してください。原文の雰囲気・文体を大切にしてください。\n\n---\n${text}\n---`;
+
+  try {
+    let result = '';
+    if (service === 'claude') {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-opus-4-5',max_tokens:2048,messages:[{role:'user',content:prompt}]})
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      result = data.content[0].text;
+    } else {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      result = data.candidates[0].content.parts[0].text;
+    }
+    resultEl.textContent = result;
+    resultEl.style.display = 'block';
+    document.getElementById('copy-result-btn').style.display = '';
+  } catch(e) {
+    resultEl.textContent = 'エラー: ' + e.message;
+    resultEl.style.display = 'block';
+  } finally {
+    btn.innerHTML = '再実行';
+    btn.disabled = false;
+  }
+}
+
+function copyResult() {
+  navigator.clipboard.writeText(document.getElementById('modal-result').textContent).then(() => {
+    const btn = document.getElementById('copy-result-btn');
+    btn.textContent = 'コピー済み ✓';
+    setTimeout(()=>btn.textContent='コピー',1500);
+  });
+}
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// Click outside to close
+['modal-overlay','export-modal-overlay','gist-modal-overlay'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e){ if(e.target===this) closeModal(id); });
+});
+
+function toast(msg, dur=2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), dur);
+}
+
+function esc(str) {
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
