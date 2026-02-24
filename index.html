@@ -680,6 +680,19 @@ body.focus-mode #focus-escape { display: block; }
 }
 .const-mode-btn:hover { border-color: var(--accent-light); color: var(--accent-light); }
 .const-mode-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+.aozora-search-tab {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  border: 1px solid var(--paper-deep);
+  background: var(--paper);
+  color: var(--ink-light);
+  transition: all 0.15s;
+}
+.aozora-search-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
 
 
 /* ── PHRASE DRAWER ── */
@@ -1290,11 +1303,29 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
       📂 ファイルを読み込む（.html / .txt）
       <input type="file" accept=".txt,.html,.htm" multiple style="display:none" onchange="loadAozoraFiles(event)">
     </label>
-    <p style="font-size:10px;color:var(--ink-light);opacity:0.4;margin-bottom:8px;">青空文庫のHTMLページを「名前を付けて保存」して読み込むのがおすすめです</p>
-    <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">キーワード（複数入力でAND絞り込み）</div>
-    <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:60px;outline:none;" placeholder="例：死、夜　← 両方含む文だけ抽出"></textarea>
-    <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraSearch()" id="const-btn-aozora">📚 原文を探す</button>
-    <button onclick="debugAozora()" style="margin-top:4px;background:none;border:1px dashed var(--paper-deep);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--ink-light);opacity:0.5;width:100%;">🔍 デバッグ確認</button>
+    <p style="font-size:10px;color:var(--ink-light);opacity:0.4;margin-bottom:12px;">青空文庫のHTMLページを「名前を付けて保存」して読み込むのがおすすめです</p>
+
+    <!-- 検索モード切り替え -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="aozora-search-tab active" id="aozora-tab-text" onclick="switchAozoraTab('text')">📝 テキスト検索</button>
+      <button class="aozora-search-tab" id="aozora-tab-ai" onclick="switchAozoraTab('ai')">🤖 AI検索</button>
+    </div>
+
+    <!-- テキスト検索 -->
+    <div id="aozora-mode-text">
+      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">キーワード（複数入力でAND絞り込み）</div>
+      <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:60px;outline:none;" placeholder="例：死、夜　← 両方含む文だけ抽出"></textarea>
+      <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraSearch()" id="const-btn-aozora">📝 検索する</button>
+    </div>
+
+    <!-- AI検索 -->
+    <div id="aozora-mode-ai" style="display:none;">
+      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">どんなシーンを探したいか</div>
+      <textarea id="aozora-ai-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:80px;outline:none;" placeholder="例：主人公が自意識に悩むシーン&#10;例：他者への嫉妬や劣等感が出ている場面&#10;例：孤独と諦めが混じった描写"></textarea>
+      <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraAiSearch()" id="const-btn-aozora-ai">🤖 AIに探してもらう</button>
+    </div>
+
+    <button onclick="debugAozora()" style="margin-top:8px;background:none;border:1px dashed var(--paper-deep);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--ink-light);opacity:0.5;width:100%;">🔍 デバッグ確認</button>
   </div>
 
   <!-- 結果表示エリア -->
@@ -2572,6 +2603,56 @@ function renderAozoraBookList() {
 function removeAozoraBook(i) {
   aozoraBooks.splice(i, 1);
   renderAozoraBookList();
+}
+
+function switchAozoraTab(mode) {
+  document.getElementById('aozora-mode-text').style.display = mode === 'text' ? 'block' : 'none';
+  document.getElementById('aozora-mode-ai').style.display = mode === 'ai' ? 'block' : 'none';
+  document.getElementById('aozora-tab-text').classList.toggle('active', mode === 'text');
+  document.getElementById('aozora-tab-ai').classList.toggle('active', mode === 'ai');
+  document.getElementById('constellation-result').style.display = 'none';
+}
+
+async function runAozoraAiSearch() {
+  if (!aozoraBooks.length) { toast('先にファイルを読み込んでください'); return; }
+  const instruction = document.getElementById('aozora-ai-input').value.trim();
+  if (!instruction) { toast('どんなシーンを探したいか入力してください'); return; }
+  const apiKey = document.getElementById('api-key-input').value.trim();
+  if (!apiKey) { toast('添削モーダルにAPIキーを入力してください'); return; }
+
+  const btn = document.getElementById('const-btn-aozora-ai');
+  btn.disabled = true; btn.textContent = '🤖 探索中…';
+
+  // 各作品からランダムに文を抽出してAIに渡す（トークン制限対策）
+  const excerpts = aozoraBooks.map(book => {
+    const sentences = book.text
+      .split(/[。！？]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 15 && s.length < 150);
+    // ランダムに最大80文サンプリング
+    const sample = sentences.length > 80
+      ? sentences.sort(() => Math.random() - 0.5).slice(0, 80)
+      : sentences;
+    return '【' + book.title + '／' + book.author + '】\n' + sample.join('。') + '。';
+  }).join('\n\n---\n\n').slice(0, 8000);
+
+  const prompt = '以下は青空文庫の原文抜粋です。\n\n' + excerpts + '\n\n---\n\n「' + instruction + '」に当てはまる箇所を原文からそのまま抜き出してください。\n\n【厳守】\n・原文を一字一句そのまま引用（書き換え・要約禁止）\n・各作品から2〜3箇所\n\n形式：\n📖『作品名』\n「原文」\n→ なぜ該当するか一言';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:'claude-opus-4-5', max_tokens:1500, messages:[{role:'user',content:prompt}] })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || '失敗');
+    document.getElementById('constellation-result-body').textContent = data.content[0]?.text || '';
+    document.getElementById('constellation-result').style.display = 'block';
+    document.getElementById('constellation-result').scrollIntoView({ behavior:'smooth', block:'start' });
+  } catch(e) {
+    toast('⚠ ' + (e.message || 'AI検索に失敗しました'));
+  }
+  btn.disabled = false; btn.textContent = '🤖 AIに探してもらう';
 }
 
 function debugAozora() {
