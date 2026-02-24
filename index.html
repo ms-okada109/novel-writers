@@ -2652,6 +2652,7 @@ async function runAozoraAiSearch() {
     for (let i = 0; i < text.length; i += CHUNK) {
       chunks.push(text.slice(i, i + CHUNK));
     }
+    toast('📚 ' + book.title + '：' + chunks.length + 'チャンク、' + text.length + '字');
 
     for (let ci = 0; ci < chunks.length; ci++) {
       btn.textContent = `🤖 探索中… ${book.title} (${ci+1}/${chunks.length})`;
