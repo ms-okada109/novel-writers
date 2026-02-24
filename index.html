@@ -1306,19 +1306,8 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
 
     <!-- キーワード入力 -->
     <div style="margin-top:12px;">
-      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">描写スタイル（任意）</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="心情描写">💭 心情描写</button>
-        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="情景描写">🌿 情景描写</button>
-        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="死の描写">💀 死の描写</button>
-        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="セリフ">💬 セリフ</button>
-        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="孤独">🫥 孤独</button>
-        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="夜の描写">🌙 夜</button>
-        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="自然描写">🍃 自然</button>
-        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="愛の描写">❤ 愛</button>
-      </div>
-      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">キーワード（複数入力で AND 絞り込み）</div>
-      <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:50px;outline:none;" placeholder="例：死、夜　← 両方含む文だけ抽出"></textarea>
+      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">検索キーワード（複数入力で AND 絞り込み）</div>
+      <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:60px;outline:none;" placeholder="例：死、夜　← 両方含む文だけ抽出"></textarea>
     </div>
 
     <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraSearch()" id="const-btn-aozora">📚 原文を探す</button>
@@ -2590,63 +2579,12 @@ function debugAozora() {
   document.getElementById('constellation-result').style.display = 'block';
 }
 
-function toggleStyleBtn(el) {
-  el.classList.toggle('active');
-}
+function toggleStyleBtn(el) { el.classList.toggle('active'); }
 
 async function runAozoraSearch() {
   if (!aozoraBooks.length) { toast('先にテキストファイルを読み込んでください'); return; }
   const keyword = document.getElementById('aozora-keyword-input').value.trim();
-  const styles = [...document.querySelectorAll('.aozora-style-btn.active')].map(b => b.dataset.val);
-  if (!keyword && !styles.length) { toast('キーワードかスタイルを選んでください'); return; }
-
-  const btn = document.getElementById('const-btn-aozora');
-  btn.disabled = true; btn.textContent = '📚 検索中…';
-
-  const keywords = keyword.split(/[、,\s]+/).filter(Boolean);
-
-  // API不要・純粋JSでテキスト検索
-  let allResults = [];
-  aozoraBooks.forEach(book => {
-    const sentences = book.text
-      .split(/[。！？]/)
-      .map(s => s.trim())
-      .filter(s => s.length > 10 && s.length < 120);
-
-    const matched = sentences.filter(s =>
-      keywords.length === 0 || keywords.every(k => s.includes(k))
-    );
-
-    matched.forEach(s => allResults.push({ sentence: s, title: book.title, author: book.author }));
-  });
-
-  if (!allResults.length) {
-    document.getElementById('constellation-result-body').textContent =
-      '「' + keyword + '」を含む文が見つかりませんでした。
-キーワードを減らすか変えてみてください。';
-    document.getElementById('constellation-result').style.display = 'block';
-    btn.disabled = false; btn.textContent = '📚 原文を探す';
-    return;
-  }
-
-  // 最大30件（多い場合はランダムサンプリング）
-  const sample = allResults.length > 30
-    ? allResults.sort(() => Math.random() - 0.5).slice(0, 30)
-    : allResults;
-
-  const result = '「' + keyword + '」の検索結果：' + allResults.length + '件（表示：' + sample.length + '件）
-
-' +
-    sample.map(r => '📖『' + r.title + '』
-「' + r.sentence + '」').join('
-
-');
-
-  document.getElementById('constellation-result-body').textContent = result;
-  document.getElementById('constellation-result').style.display = 'block';
-  document.getElementById('constellation-result').scrollIntoView({ behavior:'smooth', block:'start' });
-  btn.disabled = false; btn.textContent = '📚 再検索する';
-}
+  if (!keyword) { toast('キーワードを入力してください'); return; }
 
 
 
