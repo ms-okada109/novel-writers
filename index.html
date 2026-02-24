@@ -2511,10 +2511,12 @@ function loadAozoraFiles(e) {
     const reader = new FileReader();
     reader.onload = ev => {
       let text = ev.target.result;
+      // 青空文庫記法を除去
       text = text
         .replace(/《[^》]*》/g, '')
         .replace(/｜/g, '')
-        .replace(/［＃[^\]]*］/g, '')
+        .replace(/［＃[^］]*］/g, '')
+        .replace(/-{3,}/g, '')
         .replace(/\r\n/g, '\n')
         .replace(/\r/g, '\n');
       const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
