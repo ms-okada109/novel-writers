@@ -2571,7 +2571,7 @@ function loadAozoraFiles(e) {
         author = lines[1] || '';
       }
 
-      // 青空文庫記法を除去
+      // 青空文庫記法・奥付を除去
       text = text
         .replace(/《[^》]*》/g, '')
         .replace(/｜/g, '')
@@ -2579,6 +2579,9 @@ function loadAozoraFiles(e) {
         .replace(/-{3,}/g, '')
         .replace(/\r\n/g, '\n')
         .replace(/\r/g, '\n');
+      // 奥付（入力・校正・青空文庫）以降を削除
+      const cutIdx = text.search(/\n入力[：:].+\n|\n底本[：:].+\n|\n青空文庫作成/);
+      if (cutIdx > 0) text = text.slice(0, cutIdx);
 
       const existing = aozoraBooks.findIndex(b => b.title === title);
       if (existing >= 0) aozoraBooks[existing] = { title, author, text };
@@ -2635,9 +2638,13 @@ async function runAozoraAiSearch() {
       .split(/[。！？]/)
       .map(s => s.trim())
       .filter(s => s.length > 15 && s.length < 150);
-    // 作品全体から均等に80文サンプリング
-    const step = Math.max(1, Math.floor(sentences.length / 80));
-    const sample = sentences.filter((_, i) => i % step === 0).slice(0, 80);
+    // 作品全体を均等なブロックに分けて各ブロックからランダムに1文ずつ取る
+    const blockSize = Math.max(1, Math.floor(sentences.length / 80));
+    const sample = [];
+    for (let i = 0; i < sentences.length && sample.length < 80; i += blockSize) {
+      const block = sentences.slice(i, i + blockSize);
+      sample.push(block[Math.floor(Math.random() * block.length)]);
+    }
     return '【' + book.title + '／' + book.author + '】\n' + sample.join('。') + '。';
   }).join('\n\n---\n\n').slice(0, 8000);
 
