@@ -2586,7 +2586,41 @@ async function runAozoraSearch() {
   const keyword = document.getElementById('aozora-keyword-input').value.trim();
   if (!keyword) { toast('キーワードを入力してください'); return; }
 
+  const btn = document.getElementById('const-btn-aozora');
+  btn.disabled = true; btn.textContent = '📚 検索中…';
 
+  const keywords = keyword.split(/[、,\s]+/).filter(Boolean);
+  let allResults = [];
+
+  aozoraBooks.forEach(book => {
+    const sentences = book.text
+      .split(/[。！？]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 10 && s.length < 120);
+    const matched = sentences.filter(s => keywords.every(k => s.includes(k)));
+    matched.forEach(s => allResults.push({ sentence: s, title: book.title, author: book.author }));
+  });
+
+  if (!allResults.length) {
+    document.getElementById('constellation-result-body').textContent =
+      `「${keyword}」を含む文が見つかりませんでした。\nキーワードを減らすか変えてみてください。`;
+    document.getElementById('constellation-result').style.display = 'block';
+    btn.disabled = false; btn.textContent = '📚 原文を探す';
+    return;
+  }
+
+  const sample = allResults.length > 30
+    ? allResults.sort(() => Math.random() - 0.5).slice(0, 30)
+    : allResults;
+
+  const result = `「${keyword}」の検索結果：${allResults.length}件（表示：${sample.length}件）\n\n` +
+    sample.map(r => `📖『${r.title}』\n「${r.sentence}」`).join('\n\n');
+
+  document.getElementById('constellation-result-body').textContent = result;
+  document.getElementById('constellation-result').style.display = 'block';
+  document.getElementById('constellation-result').scrollIntoView({ behavior:'smooth', block:'start' });
+  btn.disabled = false; btn.textContent = '📚 再検索する';
+}
 
 // ═══════════════════════════════════════════
 // CHARACTERS
