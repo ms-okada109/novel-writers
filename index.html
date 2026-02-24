@@ -1012,7 +1012,7 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
       <button class="top-btn icon-btn" onclick="toggleDark()" title="ダーク/ライト切替">🌙</button>
       <button class="top-btn icon-btn" onclick="toggleFocus()" title="フォーカスモード (F)">⛶</button>
       <button class="top-btn icon-btn" id="phrase-drawer-btn" onclick="togglePhraseDrawer()" title="フレーズ参照パネル">📜</button>
-      <span id="gist-status" onclick="document.getElementById('gist-modal-overlay').classList.add('show')" style="font-size:11px;cursor:pointer;white-space:nowrap;"></span>
+      <span id="gist-status" onclick="openGistModal()" style="font-size:11px;cursor:pointer;white-space:nowrap;"></span>
       <button class="top-btn" onclick="openExportModal()">書き出し</button>
       <button class="top-btn primary" onclick="openProofModal()">✦ 添削</button>
     </div>
@@ -1428,6 +1428,14 @@ async function setupGist() {
 
   btn.textContent = '接続する'; btn.disabled = false;
   updateGistStatus();
+}
+
+function openGistModal() {
+  const el = document.getElementById('gist-modal-overlay');
+  el.style.display = 'flex';
+  document.getElementById('gist-token-input').value = gistToken;
+  document.getElementById('gist-id-input').value = gistId;
+  document.getElementById('gist-id-result-wrap').style.display = 'none';
 }
 
 function updateGistStatus() {
@@ -2461,7 +2469,11 @@ function copyResult() {
 // ═══════════════════════════════════════════
 // UTILS
 // ═══════════════════════════════════════════
-function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function closeModal(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('show');
+  el.style.display = 'none';
+}
 
 // Click outside to close
 ['modal-overlay','export-modal-overlay','gist-modal-overlay'].forEach(id => {
