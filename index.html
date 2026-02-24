@@ -2581,7 +2581,7 @@ function loadAozoraFiles(e) {
       renderAozoraBookList();
       toast('📚 「' + title + '」を読み込みました');
     };
-    reader.readAsText(file, 'UTF-8');
+    reader.readAsText(file, file.name.match(/\.html?$/i) ? 'UTF-8' : 'Shift_JIS');
   });
 }
 
