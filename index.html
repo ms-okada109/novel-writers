@@ -673,6 +673,18 @@ body.focus-mode #focus-escape { display: block; }
 }
 .const-mode-btn:hover { border-color: var(--accent-light); color: var(--accent-light); }
 .const-mode-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+.aozora-style-btn {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  border: 1px solid var(--paper-deep);
+  background: var(--paper);
+  color: var(--ink-light);
+  transition: all 0.15s;
+}
+.aozora-style-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
 
 /* ── PHRASE DRAWER ── */
 #panel-editor {
@@ -1288,8 +1300,19 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
 
     <!-- キーワード入力 -->
     <div style="margin-top:12px;">
-      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">シーンのキーワード</div>
-      <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:60px;outline:none;" placeholder="例：夕暮れ、孤独、雨"></textarea>
+      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">描写スタイル（任意）</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="心情描写">💭 心情描写</button>
+        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="情景描写">🌿 情景描写</button>
+        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="死の描写">💀 死の描写</button>
+        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="セリフ">💬 セリフ</button>
+        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="孤独">🫥 孤独</button>
+        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="夜の描写">🌙 夜</button>
+        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="自然描写">🍃 自然</button>
+        <button class="aozora-style-btn" onclick="toggleStyleBtn(this)" data-val="愛の描写">❤ 愛</button>
+      </div>
+      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">キーワード（複数入力で AND 絞り込み）</div>
+      <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:50px;outline:none;" placeholder="例：死、夜　← 両方含む文だけ抽出"></textarea>
     </div>
 
     <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraSearch()" id="const-btn-aozora">📚 原文を探す</button>
@@ -2541,49 +2564,70 @@ function removeAozoraBook(i) {
   renderAozoraBookList();
 }
 
+function toggleStyleBtn(el) {
+  el.classList.toggle('active');
+}
+
 async function runAozoraSearch() {
   if (!aozoraBooks.length) { toast('先にテキストファイルを読み込んでください'); return; }
   const keyword = document.getElementById('aozora-keyword-input').value.trim();
-  if (!keyword) { toast('キーワードを入力してください'); return; }
+  const styles = [...document.querySelectorAll('.aozora-style-btn.active')].map(b => b.dataset.val);
+  if (!keyword && !styles.length) { toast('キーワードかスタイルを選んでください'); return; }
   const apiKey = document.getElementById('api-key-input').value.trim();
   if (!apiKey) { toast('添削モーダルにAPIキーを入力してください'); return; }
 
   const btn = document.getElementById('const-btn-aozora');
   btn.disabled = true; btn.textContent = '📚 探索中…';
 
-  // キーワードに関連する文を各作品から抽出してAPIに送る
   const keywords = keyword.split(/[、,\s]+/).filter(Boolean);
+
+  // キーワードを含む文だけ抽出・最大5文・100字以内に絞る
   const excerpts = aozoraBooks.map(book => {
-    const sentences = book.text.split(/[。！？]/).map(s => s.trim()).filter(s => s.length > 8);
-    const matched = sentences.filter(s => keywords.some(k => s.includes(k))).slice(0, 30);
-    const fallback = matched.length < 5 ? sentences.sort(() => Math.random() - 0.5).slice(0, 20) : [];
-    return `【${book.title}／${book.author}】\n${[...matched, ...fallback].join('。')}。`;
-  }).join('\n\n---\n\n');
+    const sentences = book.text
+      .split(/[。！？]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 8 && s.length < 100);
 
-  const prompt = `以下は青空文庫の原文からの抜粋です。
+    const matched = sentences
+      .filter(s => keywords.length === 0 || keywords.every(k => s.includes(k)))
+      .slice(0, 5);
 
-${excerpts}
+    if (!matched.length) return null;
+    return `【${book.title}／${book.author}】\n${matched.join('。')}。`;
+  }).filter(Boolean).join('\n\n---\n\n');
+
+  const excerptsTrimmed = excerpts.slice(0, 3000);
+
+  if (!excerptsTrimmed) {
+    toast(`該当する文が見つかりませんでした。キーワードを変えてみてください`);
+    btn.disabled = false; btn.textContent = '📚 原文を探す';
+    return;
+  }
+
+  const styleInstruction = styles.length
+    ? `特に「${styles.join('・')}」に関する箇所を優先してください。`
+    : '';
+
+  const prompt = `以下は青空文庫の原文抜粋です。
+
+${excerptsTrimmed}
 
 ---
 
-「${keyword}」というシーン・雰囲気・感情に合う原文フレーズを各作品から2〜3箇所ずつ抜き出してください。
+${keyword ? `「${keyword}」を含み、` : ''}${styleInstruction}印象的な原文を各作品から2箇所ずつ抜き出してください。
 
-【厳守ルール】
-・原文を一字一句そのまま引用すること（絶対に書き換えない・言い換えない）
-・AIによる創作は一切しない
-・なぜ合うか一言だけ添える
+【厳守】原文を一字一句そのまま引用。書き換え・言い換え禁止。
 
 形式：
-📖『作品名』／著者名
-「原文そのまま」
-→ 一言コメント
-`;
+📖『作品名』
+「原文」
+→ 一言コメント`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model:'claude-opus-4-5', max_tokens:2000, messages:[{role:'user',content:prompt}] })
+      body: JSON.stringify({ model:'claude-opus-4-5', max_tokens:1000, messages:[{role:'user',content:prompt}] })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.message || '失敗');
