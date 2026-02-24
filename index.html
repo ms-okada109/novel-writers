@@ -1705,14 +1705,15 @@ function onEditorInput() {
   const html = document.getElementById('editor').innerHTML;
   const plain = html
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<div>/gi, '\n')
-    .replace(/<\/div>/gi, '')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<div>/gi, '')
     .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
-  ch.content = plain;
+    .replace(/&amp;/g, '&')
+    .replace(/\n{3,}/g, '\n\n'); // 3行以上の空行を2行に
+  ch.content = plain.replace(/\n+$/, ''); // 末尾の改行を除去
     saveState();
   }
   updateCharCount();
