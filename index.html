@@ -1670,7 +1670,13 @@ function loadChapter(id) {
   const ch = state.chapters.find(c => c.id === id);
   if (!ch) return;
   state.activeChapter = id;
-  document.getElementById('editor').innerHTML = ch.content || '';
+  const content = ch.content || '';
+  // プレーンテキストの改行をbrに変換して表示
+  document.getElementById('editor').innerHTML = content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
   updateCharCount();
   renderChapterList();
   // ドロワーが開いていたら更新
@@ -1695,7 +1701,18 @@ let editorSnapshot = 0;
 function onEditorInput() {
   const ch = state.chapters.find(c => c.id === state.activeChapter);
   if (ch) {
-    ch.content = document.getElementById('editor').innerHTML;
+  // HTMLをプレーンテキスト（改行）に変換して保存
+  const html = document.getElementById('editor').innerHTML;
+  const plain = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<div>/gi, '\n')
+    .replace(/<\/div>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+  ch.content = plain;
     saveState();
   }
   updateCharCount();
