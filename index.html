@@ -1322,6 +1322,7 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
     </div>
 
     <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraSearch()" id="const-btn-aozora">📚 原文を探す</button>
+    <button onclick="debugAozora()" style="margin-top:4px;background:none;border:1px dashed var(--paper-deep);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--ink-light);width:100%;">🔍 デバッグ（テキスト確認）</button>
   </div>
 
   <!-- 結果表示エリア -->
@@ -2584,6 +2585,17 @@ function removeAozoraBook(i) {
   renderAozoraBookList();
 }
 
+function debugAozora() {
+  if (!aozoraBooks.length) { toast('ファイルを読み込んでください'); return; }
+  const book = aozoraBooks[0];
+  // 最初の500字と「死」を含む文を表示
+  const preview = book.text.slice(0, 500);
+  const sentences = book.text.split(/[。！？]/).filter(s => s.includes('死')).slice(0, 3);
+  const result = `【タイトル】${book.title}\n【著者】${book.author}\n【文字数】${book.text.length}字\n\n【冒頭500字】\n${preview}\n\n【「死」を含む文（最初の3つ）】\n${sentences.join('。\n') || '見つからない'}`;
+  document.getElementById('constellation-result-body').textContent = result;
+  document.getElementById('constellation-result').style.display = 'block';
+}
+
 function toggleStyleBtn(el) {
   el.classList.toggle('active');
 }
@@ -2593,74 +2605,54 @@ async function runAozoraSearch() {
   const keyword = document.getElementById('aozora-keyword-input').value.trim();
   const styles = [...document.querySelectorAll('.aozora-style-btn.active')].map(b => b.dataset.val);
   if (!keyword && !styles.length) { toast('キーワードかスタイルを選んでください'); return; }
-  const apiKey = document.getElementById('api-key-input').value.trim();
-  if (!apiKey) { toast('添削モーダルにAPIキーを入力してください'); return; }
 
   const btn = document.getElementById('const-btn-aozora');
-  btn.disabled = true; btn.textContent = '📚 探索中…';
+  btn.disabled = true; btn.textContent = '📚 検索中…';
 
   const keywords = keyword.split(/[、,\s]+/).filter(Boolean);
 
-  // キーワードを含む文だけ抽出・最大5文・100字以内に絞る
-  const excerpts = aozoraBooks.map(book => {
+  // API不要・純粋JSでテキスト検索
+  let allResults = [];
+  aozoraBooks.forEach(book => {
     const sentences = book.text
       .split(/[。！？]/)
       .map(s => s.trim())
-      .filter(s => s.length > 8 && s.length < 100);
+      .filter(s => s.length > 10 && s.length < 120);
 
-    const matched = sentences
-      .filter(s => keywords.length === 0 || keywords.every(k => s.includes(k)))
-      .slice(0, 5);
+    const matched = sentences.filter(s =>
+      keywords.length === 0 || keywords.every(k => s.includes(k))
+    );
 
-    if (!matched.length) return null;
-    return `【${book.title}／${book.author}】\n${matched.join('。')}。`;
-  }).filter(Boolean).join('\n\n---\n\n');
+    matched.forEach(s => allResults.push({ sentence: s, title: book.title, author: book.author }));
+  });
 
-  const excerptsTrimmed = excerpts.slice(0, 3000);
-
-  if (!excerptsTrimmed) {
-    toast(`該当する文が見つかりませんでした。キーワードを変えてみてください`);
+  if (!allResults.length) {
+    document.getElementById('constellation-result-body').textContent =
+      '「' + keyword + '」を含む文が見つかりませんでした。
+キーワードを減らすか変えてみてください。';
+    document.getElementById('constellation-result').style.display = 'block';
     btn.disabled = false; btn.textContent = '📚 原文を探す';
     return;
   }
 
-  const styleInstruction = styles.length
-    ? `特に「${styles.join('・')}」に関する箇所を優先してください。`
-    : '';
+  // 最大30件（多い場合はランダムサンプリング）
+  const sample = allResults.length > 30
+    ? allResults.sort(() => Math.random() - 0.5).slice(0, 30)
+    : allResults;
 
-  const prompt = `以下は青空文庫の原文抜粋です。
+  const result = '「' + keyword + '」の検索結果：' + allResults.length + '件（表示：' + sample.length + '件）
 
-${excerptsTrimmed}
+' +
+    sample.map(r => '📖『' + r.title + '』
+「' + r.sentence + '」').join('
 
----
+');
 
-${keyword ? `「${keyword}」を含み、` : ''}${styleInstruction}印象的な原文を各作品から2箇所ずつ抜き出してください。
-
-【厳守】原文を一字一句そのまま引用。書き換え・言い換え禁止。
-
-形式：
-📖『作品名』
-「原文」
-→ 一言コメント`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model:'claude-opus-4-5', max_tokens:1000, messages:[{role:'user',content:prompt}] })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || '失敗');
-    const result = data.content[0]?.text || '';
-    document.getElementById('constellation-result-body').textContent = result;
-    document.getElementById('constellation-result').style.display = 'block';
-    document.getElementById('constellation-result').scrollIntoView({ behavior:'smooth', block:'start' });
-  } catch(e) {
-    toast('⚠ ' + (e.message || '検索に失敗しました'));
-  }
+  document.getElementById('constellation-result-body').textContent = result;
+  document.getElementById('constellation-result').style.display = 'block';
+  document.getElementById('constellation-result').scrollIntoView({ behavior:'smooth', block:'start' });
   btn.disabled = false; btn.textContent = '📚 再検索する';
 }
-
 
 
 
