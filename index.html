@@ -2535,19 +2535,33 @@ let aozoraBooks = [];
 function loadAozoraFiles(e) {
   const files = [...e.target.files];
   files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const text = ev.target.result;
-      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-      const title = lines[0] || file.name.replace(/\.txt$/, '');
-      const author = lines[1] || '';
-      const existing = aozoraBooks.findIndex(b => b.title === title);
-      if (existing >= 0) aozoraBooks[existing] = { title, author, text };
-      else aozoraBooks.push({ title, author, text });
-      renderAozoraBookList();
-      toast(`📚 「${title}」を読み込みました`);
+    const tryRead = (encoding) => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        let text = ev.target.result;
+        // 文字化けしていたらShift-JISで再試行
+        if (encoding === 'UTF-8' && text.includes('�')) {
+          tryRead('Shift_JIS'); return;
+        }
+        // 青空文庫の記法を除去
+        text = text
+          .replace(/《[^》]*》/g, '')      // ルビ《よみ》
+          .replace(/｜/g, '')              // ルビ開始記号
+          .replace(/［＃[^\]]*］/g, '')    // 注記［＃…］
+          .replace(/\r\n/g, '\n')
+          .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        const title = lines[0] || file.name.replace(/\.txt$/, '');
+        const author = lines[1] || '';
+        const existing = aozoraBooks.findIndex(b => b.title === title);
+        if (existing >= 0) aozoraBooks[existing] = { title, author, text };
+        else aozoraBooks.push({ title, author, text });
+        renderAozoraBookList();
+        toast(`📚 「${title}」を読み込みました（${encoding}）`);
+      };
+      reader.readAsText(file, encoding);
     };
-    reader.readAsText(file, 'UTF-8');
+    tryRead('UTF-8');
   });
 }
 
