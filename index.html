@@ -1975,7 +1975,7 @@ function loadChapter(id) {
   renderMemos();
   setTimeout(() => {
     const ew = document.getElementById('editor-wrapper');
-    ew.scrollLeft = 0;
+    ew.scrollLeft = ew.scrollWidth - ew.clientWidth;
     updateSlider();
   }, 100);
 }
@@ -1999,6 +1999,10 @@ function onEditorInput() {
   updateCharCount();
   updateTodayCount();
   checkAutoBackup();
+  // 書くたびに左端（最新列）が見えるようにスクロール
+  const ew = document.getElementById('editor-wrapper');
+  ew.scrollLeft = ew.scrollWidth - ew.clientWidth;
+  updateSlider();
 }
 
 function handleEditorKey(e) {
@@ -2012,9 +2016,9 @@ const _bar = document.getElementById('hscroll-bar-wrap');
 
 function updateSlider() {
   const max = _ew.scrollWidth - _ew.clientWidth;
-  if (max <= 0) { _slider.value = 10000; return; }
-  // scrollLeft=0 → 右端(書き始め) → slider右端=10000
-  // scrollLeft=max → 左端(最新) → slider左端=0
+  if (max <= 0) { _slider.value = 0; return; }
+  // scrollLeft=0 → 冒頭(右端) → slider右端=10000
+  // scrollLeft=max → 最新(左端) → slider左端=0
   _slider.value = Math.round((1 - _ew.scrollLeft / max) * 10000);
 }
 
@@ -2054,8 +2058,8 @@ _bar.addEventListener('touchmove', e => {
 }, { passive: true });
 _bar.addEventListener('touchend', () => { _drag = false; });
 
-// デフォルト右端（書き始め、scrollLeft=0）
-setTimeout(() => { _ew.scrollLeft = 0; updateSlider(); }, 200);
+// デフォルト左端（最新列）からスタート
+setTimeout(() => { _ew.scrollLeft = _ew.scrollWidth - _ew.clientWidth; updateSlider(); }, 200);
 
 
 function setFontSize(v) {
