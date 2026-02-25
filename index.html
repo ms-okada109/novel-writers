@@ -335,6 +335,8 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   align-items: center;
   padding: 0 48px;
   flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
 }
 #hscroll-range {
   width: 100%;
@@ -2005,33 +2007,61 @@ function handleEditorKey(e) {
   if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '　　'); }
 }
 
-// スライダー：左端=0（最新・左端）、右端=10000（冒頭・右端）
+// スライダー＋ドラッグスクロール
+const _ew = document.getElementById('editor-wrapper');
+const _slider = document.getElementById('hscroll-range');
+const _bar = document.getElementById('hscroll-bar-wrap');
+
 function updateSlider() {
-  const ew = document.getElementById('editor-wrapper');
-  const slider = document.getElementById('hscroll-range');
-  if (!slider) return;
-  const max = ew.scrollWidth - ew.clientWidth;
-  if (max <= 0) { slider.value = 0; return; }
-  // scrollLeft=0 → 左端（最新）→ slider=0
-  // scrollLeft=max → 右端（冒頭）→ slider=10000
-  slider.value = Math.round((ew.scrollLeft / max) * 10000);
+  const max = _ew.scrollWidth - _ew.clientWidth;
+  if (max <= 0) { _slider.value = 0; return; }
+  _slider.value = Math.round((_ew.scrollLeft / max) * 10000);
 }
 
 function onSliderInput() {
-  const ew = document.getElementById('editor-wrapper');
-  const slider = document.getElementById('hscroll-range');
-  const max = ew.scrollWidth - ew.clientWidth;
-  ew.scrollLeft = (slider.value / 10000) * max;
+  const max = _ew.scrollWidth - _ew.clientWidth;
+  _ew.scrollLeft = (_slider.value / 10000) * max;
 }
 
-// 初期化
-document.getElementById('editor-wrapper').addEventListener('scroll', updateSlider);
-document.getElementById('hscroll-range').addEventListener('input', onSliderInput);
-setTimeout(() => {
-  const ew = document.getElementById('editor-wrapper');
-  ew.scrollLeft = 0; // 左端（最新）からスタート
+_ew.addEventListener('scroll', updateSlider);
+_slider.addEventListener('input', onSliderInput);
+
+// バー上でドラッグするとスクロール
+let _drag = false, _dragX = 0, _dragScroll = 0;
+_bar.addEventListener('mousedown', e => {
+  _drag = true;
+  _dragX = e.clientX;
+  _dragScroll = _ew.scrollLeft;
+  _bar.style.cursor = 'grabbing';
+});
+window.addEventListener('mousemove', e => {
+  if (!_drag) return;
+  const dx = e.clientX - _dragX;
+  const ratio = _ew.scrollWidth / _bar.clientWidth;
+  _ew.scrollLeft = _dragScroll + dx * ratio;
   updateSlider();
-}, 200);
+});
+window.addEventListener('mouseup', () => {
+  _drag = false;
+  _bar.style.cursor = '';
+});
+
+// タッチ対応
+_bar.addEventListener('touchstart', e => {
+  _drag = true;
+  _dragX = e.touches[0].clientX;
+  _dragScroll = _ew.scrollLeft;
+}, { passive: true });
+_bar.addEventListener('touchmove', e => {
+  if (!_drag) return;
+  const dx = e.touches[0].clientX - _dragX;
+  const ratio = _ew.scrollWidth / _bar.clientWidth;
+  _ew.scrollLeft = _dragScroll + dx * ratio;
+  updateSlider();
+}, { passive: true });
+_bar.addEventListener('touchend', () => { _drag = false; });
+
+setTimeout(() => { _ew.scrollLeft = 0; updateSlider(); }, 200);
 
 
 function setFontSize(v) {
