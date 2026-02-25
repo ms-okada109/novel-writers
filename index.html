@@ -303,7 +303,6 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
     90deg, transparent, transparent calc(1.8em - 1px),
     rgba(180,160,130,0.12) calc(1.8em - 1px), rgba(180,160,130,0.12) 1.8em
   );
-  /* ネイティブスクロールバーは非表示、独自バーを使う */
   scrollbar-width: none;
 }
 #editor-wrapper::-webkit-scrollbar { display: none; }
@@ -315,9 +314,9 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   line-height: 1.8em;
   color: var(--ink);
   outline: none;
-  /* 高さを固定 → 縦40文字で自動的に左へ列が増える */
   height: 100%;
-  /* 横はコンテンツ量に応じて伸びる */
+  /* 最低でも画面幅いっぱい確保→右端スタート。書き進むと左に伸びる */
+  min-width: 100%;
   width: max-content;
   white-space: pre-wrap;
   word-break: break-all;
@@ -325,8 +324,6 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   letter-spacing: 0.08em;
   padding: 40px 48px;
   transition: font-size 0.15s;
-  /* 右上から書き始める */
-  display: block;
 }
 #editor:empty::before { content: attr(data-placeholder); color: rgba(74,56,40,0.28); pointer-events: none; }
 #hscroll-bar-wrap {
@@ -2057,7 +2054,7 @@ _bar.addEventListener('touchmove', e => {
 }, { passive: true });
 _bar.addEventListener('touchend', () => { _drag = false; });
 
-// デフォルト右端（書き始め）
+// デフォルト右端（書き始め、scrollLeft=0）
 setTimeout(() => { _ew.scrollLeft = 0; updateSlider(); }, 200);
 
 
