@@ -304,10 +304,8 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
     90deg, transparent, transparent calc(1.8em - 1px),
     rgba(180,160,130,0.12) calc(1.8em - 1px), rgba(180,160,130,0.12) 1.8em
   );
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
   scrollbar-width: none;
+  direction: rtl;
 }
 #editor-wrapper::-webkit-scrollbar { display: none; }
 #editor {
@@ -318,6 +316,7 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   line-height: 1.8em;
   color: var(--ink);
   outline: none;
+  /* Wordと同じ：高さ固定・列が増えると横に広がる */
   height: 100%;
   width: max-content;
   min-width: 100%;
@@ -326,6 +325,7 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   caret-color: var(--accent);
   letter-spacing: 0.08em;
   transition: font-size 0.15s;
+  direction: ltr;
 }
 #editor:empty::before { content: attr(data-placeholder); color: rgba(74,56,40,0.28); pointer-events: none; }
 
@@ -1989,8 +1989,9 @@ let editorSnapshot = 0;
 function syncEditorScroll(val) {
   const wrapper = document.getElementById('editor-wrapper');
   const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
-  // スライダー右端(1000)=scrollLeft 0=右端（書き始め）
-  // スライダー左端(0)=scrollLeft max=左端（古い文章）
+  // direction:rtlなのでscrollLeft=0が右端、maxが左端
+  // スライダー右端(1000)=右端(scrollLeft 0)
+  // スライダー左端(0)=左端(scrollLeft max)
   wrapper.scrollLeft = (1 - val / 1000) * maxScroll;
 }
 
@@ -2004,7 +2005,6 @@ function updateHScrollRange() {
 }
 
 function onEditorInput() {
-  autoWrapColumn();
   const ch = state.chapters.find(c => c.id === state.activeChapter);
   if (ch) {
   // HTMLをプレーンテキスト（改行）に変換して保存
