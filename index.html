@@ -1624,14 +1624,346 @@ let activePhraseTag = '__all__';
 let drawerFilterTag = '__all__';
 
 // ═══════════════════════════════════════════
+// ═══════════════════════════════════════
+// MISSING FUNCTIONS (restored)
+// ═══════════════════════════════════════
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function restoreApiKey() {
+  const key = localStorage.getItem('tsuduri_api_key');
+  if (key) {
+    const inp = document.getElementById('api-key-input');
+    if (inp) inp.value = key;
+    const cb = document.getElementById('api-key-save');
+    if (cb) cb.checked = true;
+  }
+}
+
+function onApiKeySaveToggle() {
+  const checked = document.getElementById('api-key-save').checked;
+  const key = document.getElementById('api-key-input').value.trim();
+  if (checked && key) localStorage.setItem('tsuduri_api_key', key);
+  else localStorage.removeItem('tsuduri_api_key');
+}
+
+function setFontSize(v) {
+  state.fontSize = parseInt(v);
+  document.getElementById('editor').style.fontSize = v + 'px';
+  saveState();
+}
+
+function toggleDark() {
+  state.dark = !state.dark;
+  document.body.classList.toggle('dark', state.dark);
+  saveState();
+}
+
+function toggleFocus() {
+  document.body.classList.toggle('focus-mode');
+}
+
+function getTodayWritten() {
+  const t = today();
+  return (state.stamps[t] && state.stamps[t].count) || 0;
+}
+
+function updateTodayCount() {
+  const t = today();
+  const text = document.getElementById('editor').textContent;
+  const count = text.replace(/\s/g, '').length;
+  if (!state.stamps[t]) state.stamps[t] = { emoji: '✍️', count: 0 };
+  state.stamps[t].count = Math.max(state.stamps[t].count || 0, count);
+}
+
+function updatePet() {
+  const total = Object.values(state.stamps || {}).reduce((a, s) => a + (s.count || 0), 0);
+  const stage = PET_STAGES.slice().reverse().find(s => total >= s.threshold) || PET_STAGES[0];
+  const el = document.getElementById('pet-emoji');
+  const nl = document.getElementById('pet-name');
+  const ll = document.getElementById('pet-level');
+  if (el) el.textContent = stage.emoji;
+  if (nl) nl.textContent = stage.name;
+  if (ll) ll.textContent = 'Lv.' + stage.lv;
+}
+
+function updateCharCount() {
+  const text = document.getElementById('editor').textContent;
+  const count = text.replace(/\s/g, '').length;
+  const el = document.getElementById('char-count');
+  if (el) el.textContent = count.toLocaleString() + ' 字';
+  const goal = state.goal || 1000;
+  const todayCount = getTodayWritten();
+  const pct = Math.min(100, (todayCount / goal) * 100);
+  const bar = document.getElementById('goal-bar');
+  if (bar) bar.style.width = pct + '%';
+  const rem = Math.max(0, goal - todayCount);
+  const info = document.getElementById('char-goal-info');
+  if (info) info.textContent = rem > 0 ? `目標まであと ${rem.toLocaleString()} 字` : '🎉 目標達成！';
+  updatePet();
+}
+
+function checkAutoBackup() {}
+
+function checkBackupWarning() {
+  const last = state.lastManualBackupDate;
+  if (!last) return;
+  const daysSince = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+  if (daysSince >= 7) setTimeout(() => toast(`⚠️ バックアップから${daysSince}日経っています`), 1500);
+}
+
+function onSearch(val) {
+  const panel = document.getElementById('panel-search');
+  const results = document.getElementById('search-results');
+  if (!val.trim()) { if (panel) panel.style.display = 'none'; return; }
+  if (panel) panel.style.display = '';
+  const hits = [];
+  (state.chapters || []).forEach(ch => {
+    const content = ch.content || '';
+    const idx = content.indexOf(val);
+    if (idx >= 0) {
+      const snippet = content.slice(Math.max(0, idx - 20), idx + 60);
+      hits.push(`<div class="search-hit" onclick="loadChapter('${ch.id}')" style="padding:10px;cursor:pointer;border-bottom:1px solid var(--paper-deep);"><b>${esc(ch.title)}</b><br><span style="font-size:12px;opacity:0.7;">…${esc(snippet)}…</span></div>`);
+    }
+  });
+  if (results) results.innerHTML = hits.length ? hits.join('') : '<div style="padding:20px;opacity:0.5;">見つかりませんでした</div>';
+}
+
+function openExportModal() {
+  const m = document.getElementById('export-modal');
+  if (m) m.style.display = 'flex';
+}
+
+function closeModal(id) {
+  const m = document.getElementById(id);
+  if (m) m.style.display = 'none';
+}
+
+function exportTxt() {
+  const ch = state.chapters.find(c => c.id === state.activeChapter);
+  if (!ch) return;
+  const blob = new Blob([ch.content || ''], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (ch.title || '原稿') + '.txt';
+  a.click();
+  closeModal('export-modal');
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tsuduri_backup.json';
+  a.click();
+  closeModal('export-modal');
+  state.lastManualBackupDate = today();
+  saveState();
+}
+
+function importJSON() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try { state = { ...state, ...JSON.parse(ev.target.result) }; saveState(); location.reload(); }
+      catch { toast('読み込みに失敗しました'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function manualSave() { saveState(); toast('💾 保存しました'); }
+
+// Ideas
+function renderIdeas() {
+  const search = (document.getElementById('idea-search') || {}).value || '';
+  const list = document.getElementById('idea-list');
+  if (!list) return;
+  const ideas = (state.ideas || []).filter(i => (!search || (i.text||'').includes(search)));
+  list.innerHTML = ideas.map(i => `<div class="idea-card" style="padding:12px;border-bottom:1px solid var(--paper-deep);">
+    <span>${esc(i.text||'')}</span>
+    <button onclick="deleteIdea('${i.id}')" style="float:right;background:none;border:none;cursor:pointer;opacity:0.4;">✕</button>
+  </div>`).join('') || '<div style="opacity:0.4;padding:20px;text-align:center;">アイデアがありません</div>';
+}
+function addIdea() {
+  const inp = document.getElementById('idea-input');
+  const text = inp ? inp.value.trim() : '';
+  if (!text) return;
+  if (!state.ideas) state.ideas = [];
+  state.ideas.unshift({ id: uid(), text, createdAt: today() });
+  inp.value = ''; saveState(); renderIdeas();
+}
+function deleteIdea(id) {
+  state.ideas = (state.ideas||[]).filter(i => i.id !== id);
+  saveState(); renderIdeas();
+}
+function selectIdeaTag(tag, el) {
+  activeIdeaTag = tag;
+  document.querySelectorAll('.idea-tag-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderIdeas();
+}
+
+// Phrases drawer
+
+function renderPhrases() {
+  const list = document.getElementById('phrase-list');
+  if (!list) return;
+  const phrases = state.phrases || [];
+  list.innerHTML = phrases.map(p => `<div class="phrase-card" style="padding:12px;border-bottom:1px solid var(--paper-deep);">
+    <div>${esc(p.text||'')}</div>
+    <div style="font-size:11px;opacity:0.5;">${esc(p.source||'')}</div>
+  </div>`).join('') || '<div style="opacity:0.4;padding:20px;text-align:center;">フレーズがありません</div>';
+}
+function addPhrase() {
+  const inp = document.getElementById('phrase-input');
+  const text = inp ? inp.value.trim() : '';
+  if (!text) return;
+  if (!state.phrases) state.phrases = [];
+  state.phrases.unshift({ id: uid(), text, createdAt: today() });
+  inp.value = ''; saveState(); renderPhrases();
+}
+function selectPhraseTag(tag, el) {
+  activePhraseTag = tag;
+  document.querySelectorAll('.phrase-tag-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderPhrases();
+}
+function togglePhraseDrawer() {
+  const drawer = document.getElementById('phrase-drawer');
+  if (!drawer) return;
+  drawer.classList.toggle('open');
+  const btn = document.getElementById('phrase-drawer-btn');
+  if (btn) btn.classList.toggle('active', drawer.classList.contains('open'));
+  if (drawer.classList.contains('open')) renderPhraseDrawer();
+}
+function openPhraseDrawerFromSidebar() {
+  switchPanel('editor', document.querySelector('.nav-item[data-panel="editor"]'));
+  const drawer = document.getElementById('phrase-drawer');
+  if (!drawer) return;
+  drawer.classList.add('open');
+  const btn = document.getElementById('phrase-drawer-btn');
+  if (btn) btn.classList.add('active');
+  renderPhraseDrawer();
+}
+function renderPhraseDrawer() {
+  const list = document.getElementById('phrase-drawer-list');
+  if (!list) return;
+  const phrases = state.phrases || [];
+  list.innerHTML = phrases.map(p => `<div class="phrase-drawer-item" onclick="insertPhrase(this)" data-text="${esc(p.text||'')}" style="padding:10px;cursor:pointer;border-bottom:1px solid var(--paper-deep);">
+    <div class="phrase-drawer-text">${esc(p.text||'')}</div>
+    <div style="font-size:11px;opacity:0.5;">${esc(p.source||'')}</div>
+  </div>`).join('') || '<div style="padding:20px;opacity:0.4;">フレーズがありません</div>';
+}
+function insertPhrase(el) {
+  const text = el.dataset.text;
+  const editor = document.getElementById('editor');
+  if (!editor) return;
+  editor.focus();
+  document.execCommand('insertText', false, text);
+  togglePhraseDrawer();
+}
+
+// Proof
+function openProofModal() {
+  const m = document.getElementById('proof-modal');
+  if (m) m.style.display = 'flex';
+}
+async function runProof() {
+  const key = (document.getElementById('api-key-input')||{}).value?.trim();
+  if (!key) { toast('APIキーを入力してください'); return; }
+  const ch = state.chapters.find(c => c.id === state.activeChapter);
+  if (!ch) return;
+  const result = document.getElementById('proof-result');
+  result.textContent = '添削中…';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+        messages: [{ role: 'user', content: `以下の小説の文章を添削してください。\n\n${(ch.content||'').slice(0,3000)}` }]
+      })
+    });
+    const data = await res.json();
+    result.textContent = data.content?.[0]?.text || 'エラー';
+  } catch(e) { result.textContent = 'エラー: ' + e.message; }
+}
+
+// Stamps
+function renderStamps() {
+  const grid = document.getElementById('stamp-grid');
+  if (!grid) return;
+  const days = Object.keys(state.stamps||{}).sort().reverse().slice(0,60);
+  grid.innerHTML = days.map(d => {
+    const s = state.stamps[d];
+    return `<div class="stamp-cell" title="${d}: ${(s.count||0).toLocaleString()}字" style="text-align:center;padding:4px;">
+      <div style="font-size:20px;">${s.emoji||'✍️'}</div>
+      <div style="font-size:9px;opacity:0.5;">${d.slice(5)}</div>
+    </div>`;
+  }).join('');
+}
+
+// Constellation
+function selectConstMode(mode, el) {
+  document.querySelectorAll('.const-mode-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.const-panel').forEach(p => p.style.display = 'none');
+  const t = document.getElementById('const-panel-' + mode);
+  if (t) t.style.display = '';
+}
+function switchAozoraTab(tab, el) {
+  document.querySelectorAll('.aozora-tab-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.aozora-tab-panel').forEach(p => p.style.display = 'none');
+  const t = document.getElementById('aozora-tab-' + tab);
+  if (t) t.style.display = '';
+}
+async function runConstellation() { toast('知識の星座は準備中です'); }
+
+// Delete chapter
+function deleteChapter(id, e) {
+  e.stopPropagation();
+  if ((state.chapters||[]).length <= 1) { toast('最後の章は削除できません'); return; }
+  if (!confirm('この章を削除しますか？')) return;
+  state.chapters = state.chapters.filter(c => c.id !== id);
+  if (state.activeChapter === id) loadChapter(state.chapters[0].id);
+  saveState(); renderChapterList();
+}
+
+// ═══════════════════════════════════════
 // INIT
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════
 loadState();
 if (state.dark) document.body.classList.add('dark');
+restoreApiKey();
 document.getElementById('font-slider').value = state.fontSize || 17;
 document.getElementById('editor').style.fontSize = (state.fontSize || 17) + 'px';
 document.getElementById('goal-input').value = state.goal || 1000;
-restoreApiKey();
+
+if (!state.chapters || state.chapters.length === 0) {
+  addChapter('第1章', true);
+} else {
+  renderChapterList();
+  loadChapter(state.activeChapter || state.chapters[0].id);
+}
+renderStamps();
+updatePet();
+checkBackupWarning();
+
 
 
 
