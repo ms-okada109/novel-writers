@@ -306,8 +306,7 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   );
   display: flex;
   justify-content: flex-end;
-  align-items: stretch;
-  /* ネイティブスクロールバーは非表示（独自スライダーを使う） */
+  align-items: flex-start;
   scrollbar-width: none;
 }
 #editor-wrapper::-webkit-scrollbar { display: none; }
@@ -319,9 +318,8 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   line-height: 1.8em;
   color: var(--ink);
   outline: none;
-  /* 縦方向は wrapper に合わせる */
-  height: 100%;
-  /* 横方向はコンテンツに合わせて伸びる */
+  min-height: 100%;
+  height: max-content;
   width: max-content;
   min-width: 100%;
   white-space: pre-wrap;
@@ -1692,9 +1690,8 @@ restoreApiKey();
 // 横スクロールバー同期
 const ew = document.getElementById('editor-wrapper');
 ew.addEventListener('scroll', updateHScrollRange);
-// 起動時に右端（最新）にスクロール
 setTimeout(() => {
-  ew.scrollLeft = ew.scrollWidth;
+  ew.scrollLeft = 0; // vertical-rlは0が右端
   updateHScrollRange();
 }, 150);
 
@@ -1891,7 +1888,8 @@ let editorSnapshot = 0;
 function syncEditorScroll(val) {
   const wrapper = document.getElementById('editor-wrapper');
   const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
-  // スライダー左端=右端（最新）、右端=左端（古い）
+  // スライダー右端(1000)=scrollLeft 0=右端（書き始め）
+  // スライダー左端(0)=scrollLeft max=左端（古い文章）
   wrapper.scrollLeft = (1 - val / 1000) * maxScroll;
 }
 
@@ -1900,7 +1898,7 @@ function updateHScrollRange() {
   const range = document.getElementById('hscroll-range');
   if (!range) return;
   const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
-  if (maxScroll <= 0) { range.value = 0; return; }
+  if (maxScroll <= 0) { range.value = 1000; return; }
   range.value = (1 - wrapper.scrollLeft / maxScroll) * 1000;
 }
 
