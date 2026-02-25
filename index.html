@@ -1751,11 +1751,33 @@ document.getElementById('editor').style.fontSize = (state.fontSize || 17) + 'px'
 document.getElementById('goal-input').value = state.goal || 1000;
 restoreApiKey();
 
-// 横スクロールバー同期
+// 横スクロール - マウスドラッグとタッチ対応
 const ew = document.getElementById('editor-wrapper');
 const hrange = document.getElementById('hscroll-range');
+
+// スライダー
 ew.addEventListener('scroll', updateHScrollRange);
 hrange.addEventListener('input', () => syncEditorScroll(hrange.value));
+
+// マウスドラッグでスクロール
+let isDragging = false, startX = 0, startScroll = 0;
+ew.addEventListener('mousedown', e => {
+  if (e.target.closest('#editor')) return; // エディタ内はテキスト操作優先
+  isDragging = true;
+  startX = e.clientX;
+  startScroll = ew.scrollLeft;
+  ew.style.cursor = 'grabbing';
+});
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  ew.scrollLeft = startScroll - (e.clientX - startX);
+  updateHScrollRange();
+});
+window.addEventListener('mouseup', () => {
+  isDragging = false;
+  ew.style.cursor = '';
+});
+
 setTimeout(() => {
   ew.scrollLeft = ew.scrollWidth;
   updateHScrollRange();
@@ -1957,7 +1979,23 @@ function loadChapter(id) {
   const ch = state.chapters.find(c => c.id === id);
   if (!ch) return;
   state.activeChapter = id;
-  const content = ch.content || '';
+  let content = ch.content || '';
+  // 既存データにHTMLタグが混入している場合はクリーンにする
+  if (content.includes('<') || content.includes('&lt;')) {
+    content = content
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<div>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/\n{3,}/g, '\n\n');
+    ch.content = content;
+    saveState();
+  }
+  content = wrapAt40(content);
   // プレーンテキストの改行をbrに変換して表示
   document.getElementById('editor').innerHTML = content
     .replace(/&/g, '&amp;')
