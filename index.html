@@ -313,8 +313,6 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
     rgba(180,160,130,0.12) calc(1.8em - 1px), rgba(180,160,130,0.12) 1.8em
   );
   scrollbar-width: auto;
-  /* rtlにすることでscrollLeft=0が右端（冒頭）になり、リセット問題が解消 */
-  direction: rtl;
 }
 #editor-wrapper::-webkit-scrollbar { height: 8px; }
 #editor-wrapper::-webkit-scrollbar-thumb { background: var(--accent-light); border-radius: 4px; }
@@ -335,8 +333,6 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   letter-spacing: 0.08em;
   padding: 40px 48px;
   transition: font-size 0.15s;
-  /* wrapperのrtlを打ち消してテキスト方向は正常に保つ */
-  direction: ltr;
 }
 #editor:empty::before { content: attr(data-placeholder); color: rgba(74,56,40,0.28); pointer-events: none; }
 
@@ -2418,10 +2414,35 @@ function loadChapter(id) {
   }, 100);
 }
 
-function onEditorInput() {
-  const ew = document.getElementById('editor-wrapper');
-  const savedScroll = ew ? ew.scrollLeft : null;
+// スクロール位置をロックする仕組み
+let _isEditing = false;
+let _lockedScroll = 0;
 
+(function initScrollLock() {
+  const ew = document.getElementById('editor-wrapper');
+  const ed = document.getElementById('editor');
+  if (!ew || !ed) return;
+
+  // 入力開始時にスクロール位置を記録
+  ed.addEventListener('keydown', () => {
+    _lockedScroll = ew.scrollLeft;
+    _isEditing = true;
+  });
+
+  // スクロールイベントで入力中のリセットを打ち消す
+  ew.addEventListener('scroll', () => {
+    if (_isEditing) {
+      ew.scrollLeft = _lockedScroll;
+    }
+  });
+
+  // 入力完了後にロック解除
+  ed.addEventListener('keyup', () => {
+    _isEditing = false;
+  });
+})();
+
+function onEditorInput() {
   const ch = state.chapters.find(c => c.id === state.activeChapter);
   if (ch) {
     const html = document.getElementById('editor').innerHTML;
@@ -2440,10 +2461,6 @@ function onEditorInput() {
   updateCharCount();
   updateTodayCount();
   checkAutoBackup();
-
-  if (ew && savedScroll !== null) {
-    requestAnimationFrame(() => { ew.scrollLeft = savedScroll; });
-  }
 }
 
 function handleEditorKey(e) {
