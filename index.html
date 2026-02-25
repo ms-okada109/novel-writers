@@ -309,7 +309,7 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   text-orientation: mixed;
   font-family: 'Shippori Mincho', serif;
   font-size: 17px;
-  line-height: 1.8em;
+  line-height: 30.6px;
   color: var(--ink);
   background: var(--paper);
   box-shadow: 0 2px 16px rgba(0,0,0,0.10);
@@ -320,12 +320,13 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   word-break: break-all;
   caret-color: var(--accent);
   letter-spacing: 0.08em;
-  /* 40文字×35列 固定サイズ */
-  height: calc(40 * 1.8em);
-  width: calc(35 * 1.8em);
+  /* 40文字×35列 固定px */
+  height: 1224px;
+  width: 1071px;
   overflow: hidden;
   flex-shrink: 0;
   position: relative;
+  box-sizing: content-box;
 }
 .ms-page:empty::before {
   content: attr(data-placeholder);
@@ -2023,28 +2024,47 @@ function onPageInput(e) {
   const pages = [...container.querySelectorAll('.ms-page')];
   const idx = parseInt(page.dataset.page);
 
-  // ページ番号divを除いた文字数を計測
+  // ページ番号divを除いたテキストを取得
   const clone = page.cloneNode(true);
   clone.querySelectorAll('.ms-page-num').forEach(n => n.remove());
-  const len = clone.textContent.length;
+  const fullText = clone.textContent;
 
-  if (len > CHARS_PER_PAGE) {
-    // あふれた文字を次ページへ
-    const overflow = clone.textContent.slice(CHARS_PER_PAGE);
-    page.childNodes.forEach(n => { if (n.nodeType === Node.TEXT_NODE) n.textContent = n.textContent.slice(0, CHARS_PER_PAGE); });
+  if (fullText.length > CHARS_PER_PAGE) {
+    const thisText = fullText.slice(0, CHARS_PER_PAGE);
+    const overflowText = fullText.slice(CHARS_PER_PAGE);
 
+    // 現ページを切り詰める
+    const numEl = page.querySelector('.ms-page-num');
+    page.textContent = thisText;
+    if (numEl) page.appendChild(numEl);
+
+    // 次ページへあふれ文字を送る
     const nextPage = pages[idx + 1];
     if (nextPage) {
       const nextClone = nextPage.cloneNode(true);
       nextClone.querySelectorAll('.ms-page-num').forEach(n => n.remove());
-      nextPage.childNodes.forEach(n => { if (n.nodeType === Node.TEXT_NODE) n.textContent = overflow + n.textContent; });
+      const nextNumEl = nextPage.querySelector('.ms-page-num');
+      nextPage.textContent = overflowText + nextClone.textContent;
+      if (nextNumEl) nextPage.appendChild(nextNumEl);
+      // カーソルを次ページ先頭へ
       nextPage.focus();
+      const range = document.createRange();
+      range.setStart(nextPage.firstChild || nextPage, 0);
+      range.collapse(true);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      nextPage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
-      // 新しいページを追加
-      const newPage = createPageEl(overflow, pages.length, pages.length + 1);
+      // 新ページ追加
+      const newPage = createPageEl(overflowText, pages.length, pages.length + 1);
       newPage.dataset.page = pages.length;
       container.appendChild(newPage);
       newPage.focus();
+      const range = document.createRange();
+      range.setStart(newPage.firstChild || newPage, 0);
+      range.collapse(true);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
       newPage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
