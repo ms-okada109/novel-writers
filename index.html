@@ -2419,6 +2419,9 @@ function loadChapter(id) {
 }
 
 function onEditorInput() {
+  const ew = document.getElementById('editor-wrapper');
+  const savedScroll = ew ? ew.scrollLeft : null;
+
   const ch = state.chapters.find(c => c.id === state.activeChapter);
   if (ch) {
     const html = document.getElementById('editor').innerHTML;
@@ -2437,6 +2440,10 @@ function onEditorInput() {
   updateCharCount();
   updateTodayCount();
   checkAutoBackup();
+
+  if (ew && savedScroll !== null) {
+    requestAnimationFrame(() => { ew.scrollLeft = savedScroll; });
+  }
 }
 
 function handleEditorKey(e) {
