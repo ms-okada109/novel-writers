@@ -2576,17 +2576,13 @@ function loadAozoraFiles(e) {
         author = lines[1] || '';
       }
 
-      // 青空文庫記法・奥付を除去
+      // 青空文庫記法を除去
       text = text
         .replace(/《[^》]*》/g, '')
         .replace(/｜/g, '')
         .replace(/［＃[^\]]*］/g, '')
-        .replace(/-{3,}/g, '')
         .replace(/\r\n/g, '\n')
         .replace(/\r/g, '\n');
-      // 奥付（入力・校正・青空文庫）以降を削除
-      const cutIdx = text.search(/\n入力[：:].+\n|\n底本[：:].+\n|\n青空文庫作成/);
-      if (cutIdx > 0) text = text.slice(0, cutIdx);
 
       const existing = aozoraBooks.findIndex(b => b.title === title);
       if (existing >= 0) aozoraBooks[existing] = { title, author, text };
