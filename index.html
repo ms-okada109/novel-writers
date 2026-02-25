@@ -303,9 +303,11 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
     90deg, transparent, transparent calc(1.8em - 1px),
     rgba(180,160,130,0.12) calc(1.8em - 1px), rgba(180,160,130,0.12) 1.8em
   );
-  scrollbar-width: none;
+  /* ネイティブスクロールバーを表示して確認 */
+  scrollbar-width: auto;
 }
-#editor-wrapper::-webkit-scrollbar { display: none; }
+#editor-wrapper::-webkit-scrollbar { height: 8px; }
+#editor-wrapper::-webkit-scrollbar-thumb { background: var(--accent-light); border-radius: 4px; }
 #editor {
   writing-mode: vertical-rl;
   text-orientation: mixed;
@@ -2025,6 +2027,7 @@ function updateSlider() {
 function onSliderInput() {
   const max = _ew.scrollWidth - _ew.clientWidth;
   _ew.scrollLeft = (1 - _slider.value / 10000) * max;
+  console.log('slider:', _slider.value, 'max:', max, 'scrollLeft:', _ew.scrollLeft);
 }
 
 _ew.addEventListener('scroll', updateSlider);
