@@ -2004,6 +2004,7 @@ function updateHScrollRange() {
 }
 
 function onEditorInput() {
+  autoWrapColumn();
   const ch = state.chapters.find(c => c.id === state.activeChapter);
   if (ch) {
   // HTMLをプレーンテキスト（改行）に変換して保存
@@ -2066,6 +2067,65 @@ function showAutoBackupToast(total) {
 
 function handleEditorKey(e) {
   if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '　　'); }
+}
+
+// 1列に収まる最大文字数を計算
+function getCharsPerColumn() {
+  const wrapper = document.getElementById('editor-wrapper');
+  const fontSize = state.fontSize || 17;
+  const lineHeight = fontSize * 1.8;
+  const availableHeight = wrapper.clientHeight - 80; // padding分引く
+  return Math.floor(availableHeight / lineHeight);
+}
+
+// 現在の段落が列をはみ出していたら改行を挿入
+function autoWrapColumn() {
+  const editor = document.getElementById('editor');
+  const charsPerCol = getCharsPerColumn();
+  if (charsPerCol <= 0) return;
+
+  const html = editor.innerHTML;
+  // <br>で段落に分割
+  const paras = html.split(/<br\s*\/?>/i);
+  let changed = false;
+  const newParas = paras.map(p => {
+    // タグを除いた文字数
+    const text = p.replace(/<[^>]+>/g, '');
+    if (text.length > charsPerCol) {
+      // charsPerCol文字ごとに<br>を挿入
+      let result = '';
+      let count = 0;
+      for (const ch of p) {
+        if (ch === '<') {
+          // タグはそのまま
+          result += ch;
+          continue;
+        }
+        result += ch;
+        count++;
+        if (count >= charsPerCol) {
+          result += '<br>';
+          count = 0;
+          changed = true;
+        }
+      }
+      return result;
+    }
+    return p;
+  });
+
+  if (changed) {
+    const sel = window.getSelection();
+    const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+    const offset = range ? range.startOffset : 0;
+    editor.innerHTML = newParas.join('<br>');
+    // カーソルを末尾に戻す
+    const newRange = document.createRange();
+    newRange.selectNodeContents(editor);
+    newRange.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+  }
 }
 
 function setFontSize(v) {
