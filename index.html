@@ -1801,21 +1801,20 @@ function manualSave() { saveState(); toast('💾 保存しました'); }
 // Ideas
 function renderIdeas() {
   const search = (document.getElementById('idea-search') || {}).value || '';
-  const list = document.getElementById('idea-list');
+  const list = document.getElementById('idea-grid');
   if (!list) return;
   const ideas = (state.ideas || []).filter(i => (!search || (i.text||'').includes(search)));
-  list.innerHTML = ideas.map(i => `<div class="idea-card" style="padding:12px;border-bottom:1px solid var(--paper-deep);">
-    <span>${esc(i.text||'')}</span>
-    <button onclick="deleteIdea('${i.id}')" style="float:right;background:none;border:none;cursor:pointer;opacity:0.4;">✕</button>
-  </div>`).join('') || '<div style="opacity:0.4;padding:20px;text-align:center;">アイデアがありません</div>';
+  list.innerHTML = ideas.map(i => `<div class="idea-card">
+    <button onclick="deleteIdea('${i.id}')" style="float:right;background:none;border:none;cursor:pointer;opacity:0.4;font-size:12px;">✕</button>
+    <div style="padding:4px 0;">${esc(i.text||'')}</div>
+  </div>`).join('') || '<div style="opacity:0.4;padding:20px;text-align:center;grid-column:1/-1;">アイデアがありません</div>';
 }
 function addIdea() {
-  const inp = document.getElementById('idea-input');
-  const text = inp ? inp.value.trim() : '';
-  if (!text) return;
+  const text = prompt('アイデアを入力してください');
+  if (!text || !text.trim()) return;
   if (!state.ideas) state.ideas = [];
-  state.ideas.unshift({ id: uid(), text, createdAt: today() });
-  inp.value = ''; saveState(); renderIdeas();
+  state.ideas.unshift({ id: uid(), text: text.trim(), createdAt: today() });
+  saveState(); renderIdeas();
 }
 function deleteIdea(id) {
   state.ideas = (state.ideas||[]).filter(i => i.id !== id);
@@ -1853,22 +1852,12 @@ function selectPhraseTag(tag, el) {
   if (el) el.classList.add('active');
   renderPhrases();
 }
-function togglePhraseDrawer() {
-  const drawer = document.getElementById('phrase-drawer');
-  if (!drawer) return;
-  drawer.classList.toggle('open');
-  const btn = document.getElementById('phrase-drawer-btn');
-  if (btn) btn.classList.toggle('active', drawer.classList.contains('open'));
-  if (drawer.classList.contains('open')) renderPhraseDrawer();
-}
 function openPhraseDrawerFromSidebar() {
-  switchPanel('editor', document.querySelector('.nav-item[data-panel="editor"]'));
-  const drawer = document.getElementById('phrase-drawer');
-  if (!drawer) return;
-  drawer.classList.add('open');
-  const btn = document.getElementById('phrase-drawer-btn');
-  if (btn) btn.classList.add('active');
-  renderPhraseDrawer();
+  window.open('https://ms-okada109.github.io/phrase-database/', '_blank');
+}
+
+function togglePhraseDrawer() {
+  window.open('https://ms-okada109.github.io/phrase-database/', '_blank');
 }
 function renderPhraseDrawer() {
   const list = document.getElementById('phrase-drawer-list');
@@ -2021,7 +2010,7 @@ function onCharacterInput(id, field, val) {
 }
 
 function renderCharacters() {
-  const list = document.getElementById('character-list');
+  const list = document.getElementById('char-list');
   if (!list) return;
   const chars = state.characters || [];
   list.innerHTML = chars.map(c => `
@@ -2054,7 +2043,7 @@ function deleteBotsu(id) {
 }
 
 function renderBotsu() {
-  const list = document.getElementById('botsu-list');
+  const list = document.getElementById('botsu-grid');
   if (!list) return;
   const botsu = state.botsu || [];
   list.innerHTML = botsu.map(b => `
