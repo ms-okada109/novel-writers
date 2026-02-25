@@ -305,7 +305,9 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
     rgba(180,160,130,0.12) calc(1.8em - 1px), rgba(180,160,130,0.12) 1.8em
   );
   scrollbar-width: none;
-  direction: rtl;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
 }
 #editor-wrapper::-webkit-scrollbar { display: none; }
 #editor {
@@ -316,7 +318,6 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   line-height: 1.8em;
   color: var(--ink);
   outline: none;
-  /* Wordと同じ：高さ固定・列が増えると横に広がる */
   height: 100%;
   width: max-content;
   min-width: 100%;
@@ -325,7 +326,6 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   caret-color: var(--accent);
   letter-spacing: 0.08em;
   transition: font-size 0.15s;
-  direction: ltr;
 }
 #editor:empty::before { content: attr(data-placeholder); color: rgba(74,56,40,0.28); pointer-events: none; }
 
@@ -1757,7 +1757,7 @@ const hrange = document.getElementById('hscroll-range');
 ew.addEventListener('scroll', updateHScrollRange);
 hrange.addEventListener('input', () => syncEditorScroll(hrange.value));
 setTimeout(() => {
-  ew.scrollLeft = 0;
+  ew.scrollLeft = ew.scrollWidth;
   updateHScrollRange();
 }, 150);
 
@@ -1989,10 +1989,9 @@ let editorSnapshot = 0;
 function syncEditorScroll(val) {
   const wrapper = document.getElementById('editor-wrapper');
   const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
-  // direction:rtlなのでscrollLeft=0が右端、maxが左端
-  // スライダー右端(1000)=右端(scrollLeft 0)
-  // スライダー左端(0)=左端(scrollLeft max)
-  wrapper.scrollLeft = (1 - val / 1000) * maxScroll;
+  // スライダー右端(1000)=scrollLeft max=右端
+  // スライダー左端(0)=scrollLeft 0=左端
+  wrapper.scrollLeft = maxScroll - (val / 1000) * maxScroll;
 }
 
 function updateHScrollRange() {
@@ -2004,12 +2003,26 @@ function updateHScrollRange() {
   range.value = (1 - wrapper.scrollLeft / maxScroll) * 1000;
 }
 
+// 40文字ごとに改行を挿入（段落ごとに処理）
+function wrapAt40(text) {
+  const COLS = 40;
+  return text.split('\n').map(line => {
+    if (line.length <= COLS) return line;
+    let result = '';
+    for (let i = 0; i < line.length; i += COLS) {
+      result += line.slice(i, i + COLS);
+      if (i + COLS < line.length) result += '\n';
+    }
+    return result;
+  }).join('\n');
+}
+
 function onEditorInput() {
   const ch = state.chapters.find(c => c.id === state.activeChapter);
   if (ch) {
   // HTMLをプレーンテキスト（改行）に変換して保存
   const html = document.getElementById('editor').innerHTML;
-  const plain = html
+  let plain = html
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/div>/gi, '\n')
     .replace(/<div>/gi, '')
@@ -2018,8 +2031,10 @@ function onEditorInput() {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
-    .replace(/\n{3,}/g, '\n\n'); // 3行以上の空行を2行に
-  ch.content = plain.replace(/\n+$/, ''); // 末尾の改行を除去
+    .replace(/\n{3,}/g, '\n\n');
+  plain = plain.replace(/\n+$/, '');
+  // 40文字改行を適用して保存
+  ch.content = wrapAt40(plain);
     saveState();
   }
   updateCharCount();
