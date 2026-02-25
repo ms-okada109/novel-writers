@@ -1903,7 +1903,21 @@ async function runProof() {
   } catch(e) { result.textContent = 'エラー: ' + e.message; }
 }
 
+
 // Stamps
+function renderStampGrid() {
+  renderStamps();
+}
+
+function updateStats() {
+  const total = Object.values(state.stamps || {}).reduce((a, s) => a + (s.count || 0), 0);
+  const days = Object.keys(state.stamps || {}).length;
+  const el = document.getElementById('stats-total');
+  if (el) el.textContent = total.toLocaleString() + ' 字';
+  const el2 = document.getElementById('stats-days');
+  if (el2) el2.textContent = days + ' 日';
+}
+
 function renderStamps() {
   const grid = document.getElementById('stamp-grid');
   if (!grid) return;
@@ -1945,9 +1959,189 @@ function deleteChapter(id, e) {
 }
 
 // ═══════════════════════════════════════
-// INIT
+// ADDITIONAL MISSING FUNCTIONS
 // ═══════════════════════════════════════
-loadState();
+
+function setGoal(v) {
+  state.goal = parseInt(v) || 1000;
+  saveState();
+  updateCharCount();
+}
+
+function onApiKeyInput() {
+  // API key入力時の処理（保存チェックボックスが有効なら保存）
+  const checked = (document.getElementById('api-key-save') || {}).checked;
+  if (checked) onApiKeySaveToggle();
+}
+
+function copyResult() {
+  const result = document.getElementById('proof-result');
+  if (!result) return;
+  navigator.clipboard.writeText(result.textContent).then(() => toast('コピーしました'));
+  const btn = document.getElementById('copy-result-btn');
+  if (btn) btn.style.display = '';
+}
+
+// 人物ノート
+function addCharacter() {
+  if (!state.characters) state.characters = [];
+  const ch = { id: uid(), name: '新しい人物', age: '', memo: '', createdAt: today() };
+  state.characters.push(ch);
+  saveState();
+  renderCharacters();
+}
+
+function deleteCharacter(id) {
+  state.characters = (state.characters || []).filter(c => c.id !== id);
+  saveState();
+  renderCharacters();
+}
+
+function onCharacterInput(id, field, val) {
+  const ch = (state.characters || []).find(c => c.id === id);
+  if (ch) { ch[field] = val; saveState(); }
+}
+
+function renderCharacters() {
+  const list = document.getElementById('character-list');
+  if (!list) return;
+  const chars = state.characters || [];
+  list.innerHTML = chars.map(c => `
+    <div class="idea-card" style="padding:14px;border-bottom:1px solid var(--paper-deep);position:relative;">
+      <button onclick="deleteCharacter('${c.id}')" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;opacity:0.4;font-size:12px;">✕</button>
+      <div style="margin-bottom:6px;"><input value="${esc(c.name||'')}" oninput="onCharacterInput('${c.id}','name',this.value)"
+        style="font-weight:bold;font-size:14px;border:none;background:transparent;color:var(--ink);outline:none;width:80%;font-family:'Noto Sans JP',sans-serif;" placeholder="名前"></div>
+      <div style="margin-bottom:6px;font-size:12px;"><input value="${esc(c.age||'')}" oninput="onCharacterInput('${c.id}','age',this.value)"
+        style="border:none;background:transparent;color:var(--ink);outline:none;font-family:'Noto Sans JP',sans-serif;" placeholder="年齢・属性"></div>
+      <textarea oninput="onCharacterInput('${c.id}','memo',this.value)" placeholder="メモ…"
+        style="width:100%;border:none;background:rgba(0,0,0,0.03);border-radius:4px;padding:6px;font-size:12px;font-family:'Noto Sans JP',sans-serif;color:var(--ink);resize:vertical;min-height:50px;outline:none;">${esc(c.memo||'')}</textarea>
+    </div>`).join('') || '<div style="opacity:0.4;padding:20px;text-align:center;">人物がいません</div>';
+}
+
+// ボツコーナー
+function addBotsu() {
+  const ch = state.chapters.find(c => c.id === state.activeChapter);
+  const text = ch ? (ch.content || '').slice(0, 200) : '';
+  if (!state.botsu) state.botsu = [];
+  state.botsu.unshift({ id: uid(), text, title: ch ? ch.title : 'メモ', createdAt: today() });
+  saveState();
+  renderBotsu();
+  toast('ボツ箱に追加しました');
+}
+
+function deleteBotsu(id) {
+  state.botsu = (state.botsu || []).filter(b => b.id !== id);
+  saveState();
+  renderBotsu();
+}
+
+function renderBotsu() {
+  const list = document.getElementById('botsu-list');
+  if (!list) return;
+  const botsu = state.botsu || [];
+  list.innerHTML = botsu.map(b => `
+    <div class="idea-card" style="padding:12px;border-bottom:1px solid var(--paper-deep);">
+      <div style="font-weight:bold;font-size:12px;margin-bottom:4px;">${esc(b.title||'')} <span style="opacity:0.4;font-weight:normal;">${b.createdAt||''}</span></div>
+      <div style="font-size:12px;opacity:0.7;">${esc((b.text||'').slice(0,100))}…</div>
+      <button onclick="deleteBotsu('${b.id}')" style="background:none;border:none;cursor:pointer;opacity:0.4;font-size:11px;">削除</button>
+    </div>`).join('') || '<div style="opacity:0.4;padding:20px;text-align:center;">ボツ原稿がありません</div>';
+}
+
+// 青空文庫検索
+let aozoraText = '';
+
+function loadAozoraFiles(event) {
+  const files = event.target.files;
+  if (!files || !files.length) return;
+  const file = files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    let text = e.target.result;
+    // HTMLの場合タグ除去
+    if (file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+      const div = document.createElement('div');
+      div.innerHTML = text;
+      text = div.textContent;
+    }
+    aozoraText = text;
+    const info = document.getElementById('aozora-file-info');
+    if (info) info.textContent = `📄 ${file.name}（${text.length.toLocaleString()}文字）`;
+    toast(`読み込み完了: ${text.length.toLocaleString()}文字`);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function runAozoraSearch() {
+  if (!aozoraText) { toast('まずファイルを読み込んでください'); return; }
+  const kwInput = document.getElementById('aozora-keyword-input');
+  const keywords = (kwInput ? kwInput.value : '').trim().split(/[\s　]+/).filter(Boolean);
+  if (!keywords.length) { toast('キーワードを入力してください'); return; }
+  const results = document.getElementById('aozora-results');
+  if (results) results.innerHTML = '検索中…';
+  const lines = aozoraText.split('\n');
+  const hits = [];
+  lines.forEach((line, i) => {
+    if (keywords.every(kw => line.includes(kw))) {
+      const context = lines.slice(Math.max(0, i-2), i+3).join('\n');
+      hits.push(context);
+    }
+  });
+  if (results) {
+    results.innerHTML = hits.length
+      ? hits.map(h => `<div style="padding:12px;border-bottom:1px solid var(--paper-deep);cursor:pointer;font-size:13px;" onclick="copyAozoraResult(this)">${esc(h)}</div>`).join('')
+      : '<div style="padding:20px;opacity:0.5;">見つかりませんでした</div>';
+  }
+}
+
+function copyAozoraResult(el) {
+  navigator.clipboard.writeText(el.textContent).then(() => toast('コピーしました'));
+}
+
+async function runAozoraAiSearch() {
+  if (!aozoraText) { toast('まずファイルを読み込んでください'); return; }
+  const key = (document.getElementById('api-key-input') || {}).value?.trim();
+  if (!key) { toast('APIキーを設定してください（添削ボタンから）'); return; }
+  const kwInput = document.getElementById('aozora-keyword-input');
+  const query = kwInput ? kwInput.value.trim() : '';
+  if (!query) { toast('検索キーワードを入力してください'); return; }
+  const results = document.getElementById('aozora-results');
+  if (results) results.innerHTML = 'AI検索中…';
+  const sample = aozoraText.slice(0, 15000);
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+        messages: [{ role: 'user', content: `以下の文章から「${query}」に関連する印象的な表現を5〜10個抜き出してください。\n\n${sample}` }]
+      })
+    });
+    const data = await res.json();
+    if (results) results.innerHTML = `<div style="padding:16px;white-space:pre-wrap;font-size:13px;">${esc(data.content?.[0]?.text || 'エラー')}</div>`;
+  } catch(e) {
+    if (results) results.innerHTML = `<div style="padding:16px;">エラー: ${esc(e.message)}</div>`;
+  }
+}
+
+function debugAozora() {
+  toast(`読み込み済み: ${aozoraText.length.toLocaleString()}文字`);
+}
+
+// JSON import (書き出しモーダルから)
+function doImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      state = { ...state, ...imported };
+      saveState();
+      location.reload();
+    } catch { toast('読み込みに失敗しました'); }
+  };
+  reader.readAsText(file);
+}
+
 if (state.dark) document.body.classList.add('dark');
 restoreApiKey();
 document.getElementById('font-slider').value = state.fontSize || 17;
@@ -2075,6 +2269,9 @@ function switchPanel(name, el) {
   document.getElementById('panel-title').textContent = titles[name] || name;
   if (name === 'stamp') { updatePet(); renderStampGrid(); updateStats(); }
   if (name === 'phrases') { renderPhrases(); }
+  if (name === 'characters') { renderCharacters(); }
+  if (name === 'botsu') { renderBotsu(); }
+  if (name === 'ideas') { renderIdeas(); }
   const showCount = name === 'editor';
   document.getElementById('char-count-wrap').style.opacity = showCount ? '1' : '0.3';
 }
