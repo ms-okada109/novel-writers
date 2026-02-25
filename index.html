@@ -231,6 +231,7 @@ body {
   #font-slider-wrap { display: none; }
   #save-indicator { display: none; }
   #gist-status { font-size: 10px !important; }
+  #gist-status-wrap { order: -1; } /* スマホでは左端に */
 }
 #panel-title { font-family: 'Shippori Mincho', serif; font-size: 15px; color: var(--ink-light); letter-spacing: 0.2em; white-space: nowrap; }
 #search-box {
@@ -1067,7 +1068,7 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
       <button class="top-btn icon-btn" onclick="toggleFocus()" title="フォーカスモード (F)">⛶</button>
       <button class="top-btn icon-btn" id="phrase-drawer-btn" onclick="togglePhraseDrawer()" title="フレーズ参照パネル">📜</button>
       <button class="top-btn" onclick="manualSave()" title="保存">💾 保存</button>
-      <span id="gist-status" onclick="openGistModal()" style="font-size:11px;cursor:pointer;white-space:nowrap;"></span>
+      <button class="top-btn" id="gist-status" onclick="openGistModal()" style="font-size:11px;cursor:pointer;white-space:nowrap;min-width:80px;"></button>
       <button class="top-btn" onclick="openExportModal()">書き出し</button>
       <button class="top-btn primary" onclick="openProofModal()">✦ 添削</button>
     </div>
