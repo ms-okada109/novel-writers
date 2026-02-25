@@ -296,17 +296,13 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
 #editor-wrapper {
   flex: 1;
   min-height: 0;
-  overflow-x: auto;
+  overflow-x: scroll;
   overflow-y: hidden;
-  padding: 40px 48px;
   background: var(--paper);
   background-image: repeating-linear-gradient(
     90deg, transparent, transparent calc(1.8em - 1px),
     rgba(180,160,130,0.12) calc(1.8em - 1px), rgba(180,160,130,0.12) 1.8em
   );
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
   scrollbar-width: none;
 }
 #editor-wrapper::-webkit-scrollbar { display: none; }
@@ -319,12 +315,13 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   color: var(--ink);
   outline: none;
   height: 100%;
+  /* width: コンテンツに合わせて伸びる。min-widthは設定しない */
   width: max-content;
-  min-width: 100%;
   white-space: pre-wrap;
   word-break: break-all;
   caret-color: var(--accent);
   letter-spacing: 0.08em;
+  padding: 40px 48px;
   transition: font-size 0.15s;
 }
 #editor:empty::before { content: attr(data-placeholder); color: rgba(74,56,40,0.28); pointer-events: none; }
