@@ -347,7 +347,7 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   background: var(--paper);
 }
 #panel-constellation {
-  padding: 32px 44px 32px 60px;
+  padding: 32px 44px;
 }
 @media (max-width: 700px) {
   #panel-constellation { padding: 20px 16px 20px 20px; }
@@ -1128,16 +1128,15 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
     <div class="panel notes-panel" id="panel-ideas">
       <div class="notes-header">💡 アイデア帳</div>
 
-      <!-- ツールバー -->
-      <div class="idea-toolbar">
-        <input id="idea-search" type="text" class="idea-search-input" placeholder="🔍 アイデアを検索…" oninput="renderIdeas()">
-        <button class="notes-add-btn" onclick="addIdea()">＋ アイデアを追加</button>
+      <!-- 追加フォーム（常時表示） -->
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <textarea id="idea-new-input" placeholder="アイデアをここに書いて追加…"
+          style="flex:1;border:1px solid var(--paper-deep);border-radius:8px;padding:10px 12px;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--ink);background:var(--paper);resize:none;min-height:60px;outline:none;"></textarea>
+        <button class="notes-add-btn" onclick="addIdea()" style="flex-shrink:0;align-self:flex-end;">＋ 追加</button>
       </div>
 
-      <!-- タグフィルター -->
-      <div id="idea-tag-filter-wrap">
-        <span class="tag-filter-pill active" data-tag="__all__" onclick="selectIdeaTag('__all__',this)">すべて</span>
-      </div>
+      <!-- 検索 -->
+      <input id="idea-search" type="text" class="idea-search-input" placeholder="🔍 検索…" oninput="renderIdeas()" style="width:100%;box-sizing:border-box;">
 
       <div class="card-grid" id="idea-grid"></div>
     </div>
@@ -1161,8 +1160,10 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
 
     <!-- 人物ノート -->
     <div class="panel notes-panel" id="panel-characters">
-      <div><div class="notes-header">👤 人物ノート</div>
-      <div style="margin-top:14px;"><button class="notes-add-btn" onclick="addCharacter()">＋ 人物を追加</button></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="notes-header" style="margin:0;">👤 人物ノート</div>
+        <button class="notes-add-btn" onclick="addCharacter()">＋ 人物を追加</button>
+      </div>
       <div id="char-list" style="display:flex;flex-direction:column;gap:12px;"></div>
     </div>
 
@@ -1170,6 +1171,88 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
     <div class="panel notes-panel" id="panel-botsu">
       <div><div class="notes-header">🗑 ボツコーナー</div>
       <div style="margin-top:14px;"><button class="notes-add-btn" onclick="addBotsu()">＋ ボツ原稿を追加</button></div></div>
+
+<!-- 知識の星座 -->
+<div class="panel notes-panel" id="panel-constellation">
+  <div class="notes-header">✦ 知識の星座</div>
+  <p style="font-size:12px;color:var(--ink-light);opacity:0.6;line-height:1.8;margin-bottom:4px;">
+    フレーズ・アイデア・人物ノートをAIが横断分析し、意味的な繋がりを発見します。
+  </p>
+
+  <!-- 分析モード選択 -->
+  <div id="constellation-modes" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+    <button class="const-mode-btn active" data-mode="connections" onclick="selectConstMode('connections',this)">🔗 繋がり</button>
+    <button class="const-mode-btn" data-mode="brief" onclick="selectConstMode('brief',this)">📋 ブリーフィング</button>
+    <button class="const-mode-btn" data-mode="suggest" onclick="selectConstMode('suggest',this)">💡 執筆提案</button>
+    <button class="const-mode-btn" data-mode="aozora" onclick="selectConstMode('aozora',this)">📚 青空文庫</button>
+  </div>
+
+  <!-- 繋がりを発見モード -->
+  <div id="const-mode-connections">
+    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;">全ての蓄積データを分析して、意味的な繋がりを見つけます。</p>
+    <button class="notes-add-btn" onclick="runConstellation('connections')" id="const-btn-connections">✦ 分析する</button>
+  </div>
+
+  <!-- 章のブリーフィングモード -->
+  <div id="const-mode-brief" style="display:none;">
+    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;">章のテーマ・登場人物を入力すると、関連する蓄積データをまとめます。</p>
+    <textarea id="const-brief-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:80px;outline:none;" placeholder="例：第3章。主人公の孤独と雨の情景。登場人物：田中、山田。"></textarea>
+    <button class="notes-add-btn" style="margin-top:8px;" onclick="runConstellation('brief')" id="const-btn-brief">📋 ブリーフィングを作成</button>
+  </div>
+
+  <!-- 執筆中に提案モード -->
+  <div id="const-mode-suggest" style="display:none;">
+    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;">今書いているシーンのキーワードを入力すると、使えそうな素材を提案します。</p>
+    <textarea id="const-suggest-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:80px;outline:none;" placeholder="例：夕暮れ、別れ、主人公が駅のホームに立っている"></textarea>
+    <button class="notes-add-btn" style="margin-top:8px;" onclick="runConstellation('suggest')" id="const-btn-suggest">💡 素材を提案してもらう</button>
+  </div>
+
+
+  <!-- 青空文庫モード -->
+  <div id="const-mode-aozora" style="display:none;">
+    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;line-height:1.8;">
+      青空文庫のテキストファイル（.txt）を読み込み、キーワードに合う原文をそのまま抜粋します。<br>
+      <a href="https://www.aozora.gr.jp" target="_blank" style="color:var(--accent-light);">青空文庫 →</a>
+    </p>
+    <div id="aozora-book-list" style="margin-bottom:10px;"></div>
+    <label class="notes-add-btn" style="cursor:pointer;display:inline-block;margin-bottom:12px;">
+      📂 ファイルを読み込む（.html / .txt）
+      <input type="file" accept=".txt,.html,.htm" multiple style="display:none" onchange="loadAozoraFiles(event)">
+    </label>
+    <p style="font-size:10px;color:var(--ink-light);opacity:0.4;margin-bottom:12px;">青空文庫のHTMLページを「名前を付けて保存」して読み込むのがおすすめです</p>
+
+    <!-- 検索モード切り替え -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="aozora-search-tab active" id="aozora-tab-text" onclick="switchAozoraTab('text')">📝 テキスト検索</button>
+      <button class="aozora-search-tab" id="aozora-tab-ai" onclick="switchAozoraTab('ai')">🤖 AI検索</button>
+    </div>
+
+    <!-- テキスト検索 -->
+    <div id="aozora-mode-text">
+      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">キーワード（複数入力でAND絞り込み）</div>
+      <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:60px;outline:none;" placeholder="例：死、夜　← 両方含む文だけ抽出"></textarea>
+      <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraSearch()" id="const-btn-aozora">📝 検索する</button>
+    </div>
+
+    <!-- AI検索 -->
+    <div id="aozora-mode-ai" style="display:none;">
+      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">どんなシーンを探したいか</div>
+      <textarea id="aozora-ai-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:80px;outline:none;" placeholder="例：主人公が自意識に悩むシーン&#10;例：他者への嫉妬や劣等感が出ている場面&#10;例：孤独と諦めが混じった描写"></textarea>
+      <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraAiSearch()" id="const-btn-aozora-ai">🤖 AIに探してもらう</button>
+    </div>
+
+    <button onclick="debugAozora()" style="margin-top:8px;background:none;border:1px dashed var(--paper-deep);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--ink-light);opacity:0.5;width:100%;">🔍 デバッグ確認</button>
+  </div>
+
+  <!-- 結果表示エリア -->
+  <div id="constellation-result" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:11px;letter-spacing:0.15em;color:var(--ink-light);opacity:0.5;">── 結果 ──</div>
+      <button onclick="document.getElementById('constellation-result').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-light);opacity:0.4;">✕ 閉じる</button>
+    </div>
+    <div id="constellation-result-body" style="font-size:13px;line-height:1.9;color:var(--ink);white-space:pre-wrap;font-family:'Shippori Mincho',serif;"></div>
+  </div>
+</div>
       <div class="card-grid" id="botsu-grid"></div>
     </div>
 
@@ -1269,87 +1352,6 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
   </div>
 </div>
 
-<!-- 知識の星座 -->
-<div class="panel notes-panel" id="panel-constellation">
-  <div class="notes-header">✦ 知識の星座</div>
-  <p style="font-size:12px;color:var(--ink-light);opacity:0.6;line-height:1.8;margin-bottom:4px;">
-    フレーズ・アイデア・人物ノートをAIが横断分析し、意味的な繋がりを発見します。
-  </p>
-
-  <!-- 分析モード選択 -->
-  <div id="constellation-modes" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
-    <button class="const-mode-btn active" data-mode="connections" onclick="selectConstMode('connections',this)">🔗 繋がり</button>
-    <button class="const-mode-btn" data-mode="brief" onclick="selectConstMode('brief',this)">📋 ブリーフィング</button>
-    <button class="const-mode-btn" data-mode="suggest" onclick="selectConstMode('suggest',this)">💡 執筆提案</button>
-    <button class="const-mode-btn" data-mode="aozora" onclick="selectConstMode('aozora',this)">📚 青空文庫</button>
-  </div>
-
-  <!-- 繋がりを発見モード -->
-  <div id="const-mode-connections">
-    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;">全ての蓄積データを分析して、意味的な繋がりを見つけます。</p>
-    <button class="notes-add-btn" onclick="runConstellation('connections')" id="const-btn-connections">✦ 分析する</button>
-  </div>
-
-  <!-- 章のブリーフィングモード -->
-  <div id="const-mode-brief" style="display:none;">
-    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;">章のテーマ・登場人物を入力すると、関連する蓄積データをまとめます。</p>
-    <textarea id="const-brief-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:80px;outline:none;" placeholder="例：第3章。主人公の孤独と雨の情景。登場人物：田中、山田。"></textarea>
-    <button class="notes-add-btn" style="margin-top:8px;" onclick="runConstellation('brief')" id="const-btn-brief">📋 ブリーフィングを作成</button>
-  </div>
-
-  <!-- 執筆中に提案モード -->
-  <div id="const-mode-suggest" style="display:none;">
-    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;">今書いているシーンのキーワードを入力すると、使えそうな素材を提案します。</p>
-    <textarea id="const-suggest-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:80px;outline:none;" placeholder="例：夕暮れ、別れ、主人公が駅のホームに立っている"></textarea>
-    <button class="notes-add-btn" style="margin-top:8px;" onclick="runConstellation('suggest')" id="const-btn-suggest">💡 素材を提案してもらう</button>
-  </div>
-
-
-  <!-- 青空文庫モード -->
-  <div id="const-mode-aozora" style="display:none;">
-    <p style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:8px;line-height:1.8;">
-      青空文庫のテキストファイル（.txt）を読み込み、キーワードに合う原文をそのまま抜粋します。<br>
-      <a href="https://www.aozora.gr.jp" target="_blank" style="color:var(--accent-light);">青空文庫 →</a>
-    </p>
-    <div id="aozora-book-list" style="margin-bottom:10px;"></div>
-    <label class="notes-add-btn" style="cursor:pointer;display:inline-block;margin-bottom:12px;">
-      📂 ファイルを読み込む（.html / .txt）
-      <input type="file" accept=".txt,.html,.htm" multiple style="display:none" onchange="loadAozoraFiles(event)">
-    </label>
-    <p style="font-size:10px;color:var(--ink-light);opacity:0.4;margin-bottom:12px;">青空文庫のHTMLページを「名前を付けて保存」して読み込むのがおすすめです</p>
-
-    <!-- 検索モード切り替え -->
-    <div style="display:flex;gap:6px;margin-bottom:12px;">
-      <button class="aozora-search-tab active" id="aozora-tab-text" onclick="switchAozoraTab('text')">📝 テキスト検索</button>
-      <button class="aozora-search-tab" id="aozora-tab-ai" onclick="switchAozoraTab('ai')">🤖 AI検索</button>
-    </div>
-
-    <!-- テキスト検索 -->
-    <div id="aozora-mode-text">
-      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">キーワード（複数入力でAND絞り込み）</div>
-      <textarea id="aozora-keyword-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:60px;outline:none;" placeholder="例：死、夜　← 両方含む文だけ抽出"></textarea>
-      <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraSearch()" id="const-btn-aozora">📝 検索する</button>
-    </div>
-
-    <!-- AI検索 -->
-    <div id="aozora-mode-ai" style="display:none;">
-      <div style="font-size:11px;color:var(--ink-light);opacity:0.5;margin-bottom:6px;">どんなシーンを探したいか</div>
-      <textarea id="aozora-ai-input" style="width:100%;padding:8px;border:1px solid var(--paper-deep);border-radius:6px;font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);resize:vertical;min-height:80px;outline:none;" placeholder="例：主人公が自意識に悩むシーン&#10;例：他者への嫉妬や劣等感が出ている場面&#10;例：孤独と諦めが混じった描写"></textarea>
-      <button class="notes-add-btn" style="margin-top:8px;" onclick="runAozoraAiSearch()" id="const-btn-aozora-ai">🤖 AIに探してもらう</button>
-    </div>
-
-    <button onclick="debugAozora()" style="margin-top:8px;background:none;border:1px dashed var(--paper-deep);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--ink-light);opacity:0.5;width:100%;">🔍 デバッグ確認</button>
-  </div>
-
-  <!-- 結果表示エリア -->
-  <div id="constellation-result" style="display:none;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <div style="font-size:11px;letter-spacing:0.15em;color:var(--ink-light);opacity:0.5;">── 結果 ──</div>
-      <button onclick="document.getElementById('constellation-result').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-light);opacity:0.4;">✕ 閉じる</button>
-    </div>
-    <div id="constellation-result-body" style="font-size:13px;line-height:1.9;color:var(--ink);white-space:pre-wrap;font-family:'Shippori Mincho',serif;"></div>
-  </div>
-</div>
 
 
 <div id="stamp-modal-overlay">
@@ -1804,17 +1806,27 @@ function renderIdeas() {
   const list = document.getElementById('idea-grid');
   if (!list) return;
   const ideas = (state.ideas || []).filter(i => (!search || (i.text||'').includes(search)));
-  list.innerHTML = ideas.map(i => `<div class="idea-card">
-    <button onclick="deleteIdea('${i.id}')" style="float:right;background:none;border:none;cursor:pointer;opacity:0.4;font-size:12px;">✕</button>
-    <div style="padding:4px 0;">${esc(i.text||'')}</div>
-  </div>`).join('') || '<div style="opacity:0.4;padding:20px;text-align:center;grid-column:1/-1;">アイデアがありません</div>';
+  list.innerHTML = ideas.map(i => `
+    <div class="idea-card">
+      <button onclick="deleteIdea('${i.id}')" style="float:right;background:none;border:none;cursor:pointer;opacity:0.4;font-size:12px;padding:0;">✕</button>
+      <textarea oninput="onIdeaInput('${i.id}',this.value)" placeholder="アイデアを入力…"
+        style="width:100%;border:none;background:transparent;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--ink);resize:none;outline:none;min-height:60px;">${esc(i.text||'')}</textarea>
+    </div>`).join('') || '<div style="opacity:0.4;padding:20px;text-align:center;grid-column:1/-1;">アイデアがありません<br>＋ ボタンで追加してください</div>';
+}
+
+function onIdeaInput(id, val) {
+  const idea = (state.ideas || []).find(i => i.id === id);
+  if (idea) { idea.text = val; saveState(); }
 }
 function addIdea() {
-  const text = prompt('アイデアを入力してください');
-  if (!text || !text.trim()) return;
+  const inp = document.getElementById('idea-new-input');
+  const text = inp ? inp.value.trim() : '';
+  if (!text) { if (inp) inp.focus(); return; }
   if (!state.ideas) state.ideas = [];
-  state.ideas.unshift({ id: uid(), text: text.trim(), createdAt: today() });
-  saveState(); renderIdeas();
+  state.ideas.unshift({ id: uid(), text, createdAt: today() });
+  if (inp) inp.value = '';
+  saveState();
+  renderIdeas();
 }
 function deleteIdea(id) {
   state.ideas = (state.ideas||[]).filter(i => i.id !== id);
