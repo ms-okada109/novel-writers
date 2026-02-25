@@ -1126,15 +1126,37 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
     <div class="panel notes-panel" id="panel-ideas">
       <div class="notes-header">💡 アイデア帳</div>
 
-      <!-- 追加フォーム（常時表示） -->
-      <div style="display:flex;gap:8px;align-items:flex-start;">
+      <!-- 追加フォーム -->
+      <div style="display:flex;flex-direction:column;gap:8px;padding:14px;background:var(--paper-warm);border-radius:10px;border:1px solid var(--paper-deep);">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="idea-new-category" style="border:1px solid var(--paper-deep);border-radius:6px;padding:5px 8px;font-size:12px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);outline:none;">
+            <option value="タイトル">📌 タイトル</option>
+            <option value="キャラクター設定">👤 キャラクター設定</option>
+            <option value="人物関係">🔗 人物関係</option>
+            <option value="風景描写">🌿 風景描写</option>
+            <option value="文章構成">📐 文章構成</option>
+            <option value="その他">💭 その他</option>
+          </select>
+          <button class="notes-add-btn" onclick="addIdea()" style="flex-shrink:0;">＋ 追加</button>
+        </div>
         <textarea id="idea-new-input" placeholder="アイデアをここに書いて追加…"
-          style="flex:1;border:1px solid var(--paper-deep);border-radius:8px;padding:10px 12px;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--ink);background:var(--paper);resize:none;min-height:60px;outline:none;"></textarea>
-        <button class="notes-add-btn" onclick="addIdea()" style="flex-shrink:0;align-self:flex-end;">＋ 追加</button>
+          style="border:1px solid var(--paper-deep);border-radius:6px;padding:8px 10px;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--ink);background:var(--paper);resize:none;min-height:52px;outline:none;"></textarea>
       </div>
 
-      <!-- 検索 -->
-      <input id="idea-search" type="text" class="idea-search-input" placeholder="🔍 検索…" oninput="renderIdeas()" style="max-width:260px;">
+      <!-- フィルター + 検索 -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input id="idea-search" type="text" placeholder="🔍 検索…" oninput="renderIdeas()"
+          style="border:1px solid var(--paper-deep);border-radius:6px;padding:5px 10px;font-size:12px;font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);outline:none;width:160px;">
+        <div id="idea-cat-filter" style="display:flex;gap:4px;flex-wrap:wrap;">
+          <button class="tag-filter-pill active" onclick="filterIdeaCat('',this)">すべて</button>
+          <button class="tag-filter-pill" onclick="filterIdeaCat('タイトル',this)">📌</button>
+          <button class="tag-filter-pill" onclick="filterIdeaCat('キャラクター設定',this)">👤</button>
+          <button class="tag-filter-pill" onclick="filterIdeaCat('人物関係',this)">🔗</button>
+          <button class="tag-filter-pill" onclick="filterIdeaCat('風景描写',this)">🌿</button>
+          <button class="tag-filter-pill" onclick="filterIdeaCat('文章構成',this)">📐</button>
+          <button class="tag-filter-pill" onclick="filterIdeaCat('その他',this)">💭</button>
+        </div>
+      </div>
 
       <div class="card-grid" id="idea-grid"></div>
     </div>
@@ -1821,14 +1843,55 @@ function onIdeaInput(id, val) {
 }
 function addIdea() {
   const inp = document.getElementById('idea-new-input');
+  const cat = document.getElementById('idea-new-category');
   const text = inp ? inp.value.trim() : '';
   if (!text) { if (inp) inp.focus(); return; }
   if (!state.ideas) state.ideas = [];
-  state.ideas.unshift({ id: uid(), text, createdAt: today() });
+  state.ideas.unshift({ id: uid(), text, category: cat ? cat.value : 'その他', createdAt: today() });
   if (inp) inp.value = '';
   saveState();
   renderIdeas();
 }
+
+let _ideaCatFilter = '';
+function filterIdeaCat(cat, el) {
+  _ideaCatFilter = cat;
+  document.querySelectorAll('#idea-cat-filter .tag-filter-pill').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderIdeas();
+}
+
+function onIdeaInput(id, val) {
+  const idea = (state.ideas || []).find(i => i.id === id);
+  if (idea) { idea.text = val; saveState(); }
+}
+
+const CAT_ICONS = { 'タイトル':'📌','キャラクター設定':'👤','人物関係':'🔗','風景描写':'🌿','文章構成':'📐','その他':'💭' };
+
+function renderIdeas() {
+  const search = (document.getElementById('idea-search') || {}).value || '';
+  const list = document.getElementById('idea-grid');
+  if (!list) return;
+  const ideas = (state.ideas || []).filter(i => {
+    const matchCat = !_ideaCatFilter || i.category === _ideaCatFilter;
+    const matchSearch = !search || (i.text||'').includes(search);
+    return matchCat && matchSearch;
+  });
+  list.innerHTML = ideas.map(i => {
+    const icon = CAT_ICONS[i.category] || '💭';
+    return `<div class="idea-card" style="position:relative;padding:12px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="font-size:14px;">${icon}</span>
+        <span style="font-size:10px;opacity:0.5;letter-spacing:0.05em;">${i.category||'その他'}</span>
+        <button onclick="deleteIdea('${i.id}')" style="margin-left:auto;background:none;border:none;cursor:pointer;opacity:0.35;font-size:12px;line-height:1;">✕</button>
+      </div>
+      <textarea oninput="onIdeaInput('${i.id}',this.value)" placeholder="アイデアを入力…"
+        style="width:100%;border:none;background:transparent;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--ink);resize:none;outline:none;min-height:56px;">${esc(i.text||'')}</textarea>
+      <div style="font-size:10px;opacity:0.25;margin-top:2px;">${i.createdAt||''}</div>
+    </div>`;
+  }).join('') || '<div style="opacity:0.4;padding:32px;text-align:center;grid-column:1/-1;">＋ ボタンでアイデアを追加</div>';
+}
+
 function deleteIdea(id) {
   state.ideas = (state.ideas||[]).filter(i => i.id !== id);
   saveState(); renderIdeas();
@@ -1955,18 +2018,63 @@ function renderStamps() {
 function selectConstMode(mode, el) {
   document.querySelectorAll('.const-mode-btn').forEach(b => b.classList.remove('active'));
   if (el) el.classList.add('active');
-  document.querySelectorAll('.const-panel').forEach(p => p.style.display = 'none');
-  const t = document.getElementById('const-panel-' + mode);
-  if (t) t.style.display = '';
+  ['connections','brief','suggest','aozora'].forEach(m => {
+    const el = document.getElementById('const-mode-' + m);
+    if (el) el.style.display = m === mode ? '' : 'none';
+  });
+  document.getElementById('constellation-result').style.display = 'none';
 }
-function switchAozoraTab(tab, el) {
-  document.querySelectorAll('.aozora-tab-btn').forEach(b => b.classList.remove('active'));
-  if (el) el.classList.add('active');
-  document.querySelectorAll('.aozora-tab-panel').forEach(p => p.style.display = 'none');
-  const t = document.getElementById('aozora-tab-' + tab);
-  if (t) t.style.display = '';
+
+function switchAozoraTab(tab) {
+  document.querySelectorAll('.aozora-search-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('aozora-tab-' + tab).classList.add('active');
+  ['text','ai'].forEach(t => {
+    const el = document.getElementById('aozora-mode-' + t);
+    if (el) el.style.display = t === tab ? '' : 'none';
+  });
 }
-async function runConstellation() { toast('知識の星座は準備中です'); }
+
+async function runConstellation(mode) {
+  const key = (document.getElementById('api-key-input')||{}).value?.trim();
+  if (!key) { toast('添削ボタンからAPIキーを設定してください'); return; }
+
+  // データ収集
+  const ideas = (state.ideas||[]).map(i => i.text).filter(Boolean).join('\n');
+  const chars = (state.characters||[]).map(c => `${c.name}：${c.memo}`).filter(Boolean).join('\n');
+  const phrases = (state.phrases||[]).map(p => p.text).filter(Boolean).join('\n');
+  const chContent = (state.chapters||[]).find(c=>c.id===state.activeChapter)?.content || '';
+
+  let prompt = '';
+  if (mode === 'connections') {
+    prompt = `以下は小説家のメモです。アイデア・人物・フレーズの間にある意味的な繋がりやテーマを発見し、執筆に活かせる洞察を3〜5点挙げてください。\n\n【アイデア】\n${ideas}\n\n【人物】\n${chars}\n\n【フレーズ】\n${phrases}`;
+  } else if (mode === 'brief') {
+    const input = document.getElementById('const-brief-input')?.value || '';
+    prompt = `以下のメモから、「${input}」に関連する素材を整理してブリーフィングを作成してください。\n\n【アイデア】\n${ideas}\n\n【人物】\n${chars}\n\n【フレーズ】\n${phrases}`;
+  } else if (mode === 'suggest') {
+    const input = document.getElementById('const-suggest-input')?.value || '';
+    prompt = `今書いているシーン：「${input}」\n\n以下の素材から、このシーンで使えそうなアイデア・フレーズ・人物描写を提案してください。\n\n【アイデア】\n${ideas}\n\n【人物】\n${chars}\n\n【フレーズ】\n${phrases}\n\n【現在の章の冒頭】\n${chContent.slice(0,500)}`;
+  }
+
+  const resultEl = document.getElementById('constellation-result');
+  const bodyEl = document.getElementById('constellation-result-body');
+  resultEl.style.display = '';
+  bodyEl.textContent = '✦ 分析中…';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    bodyEl.textContent = data.content?.[0]?.text || 'エラーが発生しました';
+  } catch(e) {
+    bodyEl.textContent = 'エラー: ' + e.message;
+  }
+}
+
 
 // Delete chapter
 function deleteChapter(id, e) {
