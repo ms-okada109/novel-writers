@@ -312,8 +312,9 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
     90deg, transparent, transparent calc(1.8em - 1px),
     rgba(180,160,130,0.12) calc(1.8em - 1px), rgba(180,160,130,0.12) 1.8em
   );
-  /* ネイティブスクロールバーを表示して確認 */
   scrollbar-width: auto;
+  /* rtlにすることでscrollLeft=0が右端（冒頭）になり、リセット問題が解消 */
+  direction: rtl;
 }
 #editor-wrapper::-webkit-scrollbar { height: 8px; }
 #editor-wrapper::-webkit-scrollbar-thumb { background: var(--accent-light); border-radius: 4px; }
@@ -326,7 +327,6 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   color: var(--ink);
   outline: none;
   height: 100%;
-  /* 最低でも画面幅いっぱい確保→右端スタート。書き進むと左に伸びる */
   min-width: 100%;
   width: max-content;
   white-space: pre-wrap;
@@ -335,6 +335,8 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   letter-spacing: 0.08em;
   padding: 40px 48px;
   transition: font-size 0.15s;
+  /* wrapperのrtlを打ち消してテキスト方向は正常に保つ */
+  direction: ltr;
 }
 #editor:empty::before { content: attr(data-placeholder); color: rgba(74,56,40,0.28); pointer-events: none; }
 
@@ -2412,7 +2414,7 @@ function loadChapter(id) {
   renderMemos();
   setTimeout(() => {
     const ew = document.getElementById('editor-wrapper');
-    ew.scrollLeft = ew.scrollWidth - ew.clientWidth;
+    ew.scrollLeft = 0;
   }, 100);
 }
 
