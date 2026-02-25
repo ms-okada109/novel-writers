@@ -290,13 +290,15 @@ body {
 mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
 
 /* ── EDITOR ── */
-#panel-editor { flex-direction: column; }
-#panel-editor > #editor-wrapper { flex: 1; min-height: 0; }
+#panel-editor {
+  flex-direction: column;
+}
 #editor-wrapper {
   flex: 1;
+  min-height: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 36px 44px;
+  padding: 40px 48px;
   background: var(--paper);
   background-image: repeating-linear-gradient(
     90deg, transparent, transparent calc(1.8em - 1px),
@@ -304,21 +306,11 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   );
   display: flex;
   justify-content: flex-end;
-  align-items: flex-start;
-  /* スクロールバーを常時表示 */
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-light) var(--paper-deep);
+  align-items: stretch;
+  /* ネイティブスクロールバーは非表示（独自スライダーを使う） */
+  scrollbar-width: none;
 }
-#editor-wrapper::-webkit-scrollbar {
-  height: 8px;
-}
-#editor-wrapper::-webkit-scrollbar-track {
-  background: var(--paper-deep);
-}
-#editor-wrapper::-webkit-scrollbar-thumb {
-  background: var(--accent-light);
-  border-radius: 4px;
-}
+#editor-wrapper::-webkit-scrollbar { display: none; }
 #editor {
   writing-mode: vertical-rl;
   text-orientation: mixed;
@@ -327,7 +319,9 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   line-height: 1.8em;
   color: var(--ink);
   outline: none;
-  height: calc(100vh - 120px);
+  /* 縦方向は wrapper に合わせる */
+  height: 100%;
+  /* 横方向はコンテンツに合わせて伸びる */
   width: max-content;
   min-width: 100%;
   white-space: pre-wrap;
@@ -1698,9 +1692,11 @@ restoreApiKey();
 // 横スクロールバー同期
 const ew = document.getElementById('editor-wrapper');
 ew.addEventListener('scroll', updateHScrollRange);
-ew.addEventListener('scrollend', updateHScrollRange);
-// スクロール位置を右端（最新）に
-setTimeout(() => { ew.scrollLeft = ew.scrollWidth; updateHScrollRange(); }, 100);
+// 起動時に右端（最新）にスクロール
+setTimeout(() => {
+  ew.scrollLeft = ew.scrollWidth;
+  updateHScrollRange();
+}, 150);
 
 if (!state.chapters || state.chapters.length === 0) {
   addChapter('第1章', true);
@@ -1895,8 +1891,8 @@ let editorSnapshot = 0;
 function syncEditorScroll(val) {
   const wrapper = document.getElementById('editor-wrapper');
   const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
-  // vertical-rlは右から左なので反転
-  wrapper.scrollLeft = maxScroll - (val / 1000) * maxScroll;
+  // スライダー左端=右端（最新）、右端=左端（古い）
+  wrapper.scrollLeft = (1 - val / 1000) * maxScroll;
 }
 
 function updateHScrollRange() {
@@ -1905,8 +1901,7 @@ function updateHScrollRange() {
   if (!range) return;
   const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
   if (maxScroll <= 0) { range.value = 0; return; }
-  // 反転して表示
-  range.value = 1000 - (wrapper.scrollLeft / maxScroll) * 1000;
+  range.value = (1 - wrapper.scrollLeft / maxScroll) * 1000;
 }
 
 function onEditorInput() {
