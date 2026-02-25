@@ -746,7 +746,10 @@ body.focus-mode #focus-escape { display: block; }
 
 /* ── PHRASE DRAWER ── */
 #panel-editor {
-  flex-direction: row;
+  flex-direction: column;
+}
+#panel-editor > #editor-wrapper {
+  flex: 1;
 }
 #phrase-drawer {
   width: 0;
