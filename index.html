@@ -296,13 +296,14 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
 #editor-wrapper {
   flex: 1;
   min-height: 0;
-  overflow-x: scroll;
+  overflow-x: auto;
   overflow-y: hidden;
   background: var(--paper);
   background-image: repeating-linear-gradient(
     90deg, transparent, transparent calc(1.8em - 1px),
     rgba(180,160,130,0.12) calc(1.8em - 1px), rgba(180,160,130,0.12) 1.8em
   );
+  /* ネイティブスクロールバーは非表示、独自バーを使う */
   scrollbar-width: none;
 }
 #editor-wrapper::-webkit-scrollbar { display: none; }
@@ -314,8 +315,9 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   line-height: 1.8em;
   color: var(--ink);
   outline: none;
+  /* 高さを固定 → 縦40文字で自動的に左へ列が増える */
   height: 100%;
-  /* width: コンテンツに合わせて伸びる。min-widthは設定しない */
+  /* 横はコンテンツ量に応じて伸びる */
   width: max-content;
   white-space: pre-wrap;
   word-break: break-all;
@@ -323,6 +325,8 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   letter-spacing: 0.08em;
   padding: 40px 48px;
   transition: font-size 0.15s;
+  /* 右上から書き始める */
+  display: block;
 }
 #editor:empty::before { content: attr(data-placeholder); color: rgba(74,56,40,0.28); pointer-events: none; }
 #hscroll-bar-wrap {
@@ -2004,60 +2008,56 @@ function handleEditorKey(e) {
   if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '　　'); }
 }
 
-// スライダー＋ドラッグスクロール
+// スクロールバー
 const _ew = document.getElementById('editor-wrapper');
 const _slider = document.getElementById('hscroll-range');
 const _bar = document.getElementById('hscroll-bar-wrap');
 
 function updateSlider() {
   const max = _ew.scrollWidth - _ew.clientWidth;
-  if (max <= 0) { _slider.value = 0; return; }
-  _slider.value = Math.round((_ew.scrollLeft / max) * 10000);
+  if (max <= 0) { _slider.value = 10000; return; }
+  // scrollLeft=0 → 右端(書き始め) → slider右端=10000
+  // scrollLeft=max → 左端(最新) → slider左端=0
+  _slider.value = Math.round((1 - _ew.scrollLeft / max) * 10000);
 }
 
 function onSliderInput() {
   const max = _ew.scrollWidth - _ew.clientWidth;
-  _ew.scrollLeft = (_slider.value / 10000) * max;
+  _ew.scrollLeft = (1 - _slider.value / 10000) * max;
 }
 
 _ew.addEventListener('scroll', updateSlider);
 _slider.addEventListener('input', onSliderInput);
 
-// バー上でドラッグするとスクロール
+// バー上ドラッグでスクロール
 let _drag = false, _dragX = 0, _dragScroll = 0;
 _bar.addEventListener('mousedown', e => {
-  _drag = true;
-  _dragX = e.clientX;
-  _dragScroll = _ew.scrollLeft;
+  _drag = true; _dragX = e.clientX; _dragScroll = _ew.scrollLeft;
   _bar.style.cursor = 'grabbing';
 });
 window.addEventListener('mousemove', e => {
   if (!_drag) return;
   const dx = e.clientX - _dragX;
-  const ratio = _ew.scrollWidth / _bar.clientWidth;
-  _ew.scrollLeft = _dragScroll + dx * ratio;
+  const ratio = (_ew.scrollWidth - _ew.clientWidth) / _bar.clientWidth;
+  _ew.scrollLeft = Math.max(0, _dragScroll - dx * ratio);
   updateSlider();
 });
-window.addEventListener('mouseup', () => {
-  _drag = false;
-  _bar.style.cursor = '';
-});
+window.addEventListener('mouseup', () => { _drag = false; _bar.style.cursor = ''; });
 
-// タッチ対応
+// タッチ
 _bar.addEventListener('touchstart', e => {
-  _drag = true;
-  _dragX = e.touches[0].clientX;
-  _dragScroll = _ew.scrollLeft;
+  _drag = true; _dragX = e.touches[0].clientX; _dragScroll = _ew.scrollLeft;
 }, { passive: true });
 _bar.addEventListener('touchmove', e => {
   if (!_drag) return;
   const dx = e.touches[0].clientX - _dragX;
-  const ratio = _ew.scrollWidth / _bar.clientWidth;
-  _ew.scrollLeft = _dragScroll + dx * ratio;
+  const ratio = (_ew.scrollWidth - _ew.clientWidth) / _bar.clientWidth;
+  _ew.scrollLeft = Math.max(0, _dragScroll - dx * ratio);
   updateSlider();
 }, { passive: true });
 _bar.addEventListener('touchend', () => { _drag = false; });
 
+// デフォルト右端（書き始め）
 setTimeout(() => { _ew.scrollLeft = 0; updateSlider(); }, 200);
 
 
