@@ -2014,55 +2014,23 @@ function handleEditorKey(e) {
 // スクロールバー
 const _ew = document.getElementById('editor-wrapper');
 const _slider = document.getElementById('hscroll-range');
-const _bar = document.getElementById('hscroll-bar-wrap');
 
 function updateSlider() {
   const max = _ew.scrollWidth - _ew.clientWidth;
-  if (max <= 0) { _slider.value = 0; return; }
-  // scrollLeft=0 → 冒頭(右端) → slider右端=10000
-  // scrollLeft=max → 最新(左端) → slider左端=0
+  if (max <= 0) { _slider.value = 10000; return; }
+  // scrollLeft=0 → 右端(冒頭) → slider=10000
+  // scrollLeft=max → 左端(最新) → slider=0
   _slider.value = Math.round((1 - _ew.scrollLeft / max) * 10000);
 }
 
-function onSliderInput() {
-  const max = _ew.scrollWidth - _ew.clientWidth;
-  _ew.scrollLeft = (1 - _slider.value / 10000) * max;
-  console.log('slider:', _slider.value, 'max:', max, 'scrollLeft:', _ew.scrollLeft);
-}
-
 _ew.addEventListener('scroll', updateSlider);
-_slider.addEventListener('input', onSliderInput);
 
-// バー上ドラッグでスクロール
-let _drag = false, _dragX = 0, _dragScroll = 0;
-_bar.addEventListener('mousedown', e => {
-  _drag = true; _dragX = e.clientX; _dragScroll = _ew.scrollLeft;
-  _bar.style.cursor = 'grabbing';
+_slider.addEventListener('input', function() {
+  const max = _ew.scrollWidth - _ew.clientWidth;
+  _ew.scrollLeft = (1 - this.value / 10000) * max;
 });
-window.addEventListener('mousemove', e => {
-  if (!_drag) return;
-  const dx = e.clientX - _dragX;
-  const ratio = (_ew.scrollWidth - _ew.clientWidth) / _bar.clientWidth;
-  _ew.scrollLeft = Math.max(0, _dragScroll - dx * ratio);
-  updateSlider();
-});
-window.addEventListener('mouseup', () => { _drag = false; _bar.style.cursor = ''; });
 
-// タッチ
-_bar.addEventListener('touchstart', e => {
-  _drag = true; _dragX = e.touches[0].clientX; _dragScroll = _ew.scrollLeft;
-}, { passive: true });
-_bar.addEventListener('touchmove', e => {
-  if (!_drag) return;
-  const dx = e.touches[0].clientX - _dragX;
-  const ratio = (_ew.scrollWidth - _ew.clientWidth) / _bar.clientWidth;
-  _ew.scrollLeft = Math.max(0, _dragScroll - dx * ratio);
-  updateSlider();
-}, { passive: true });
-_bar.addEventListener('touchend', () => { _drag = false; });
-
-// デフォルト左端（最新列）からスタート
-setTimeout(() => { _ew.scrollLeft = _ew.scrollWidth - _ew.clientWidth; updateSlider(); }, 200);
+setTimeout(() => { updateSlider(); }, 300);
 
 
 function setFontSize(v) {
