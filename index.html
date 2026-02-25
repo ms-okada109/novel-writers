@@ -1973,12 +1973,11 @@ function loadChapter(id) {
   drawerFilterTag = '__all__';
   if (document.getElementById('phrase-drawer').classList.contains('open')) renderPhraseDrawer();
   renderMemos();
-  // スクロールを右端（最新）に
   setTimeout(() => {
     const ew = document.getElementById('editor-wrapper');
-    ew.scrollLeft = ew.scrollWidth;
+    ew.scrollLeft = 0;
     updateSlider();
-  }, 50);
+  }, 100);
 }
 
 function onEditorInput() {
@@ -2000,10 +1999,6 @@ function onEditorInput() {
   updateCharCount();
   updateTodayCount();
   checkAutoBackup();
-  // 書いたら左端（最新）へスクロール
-  const ew = document.getElementById('editor-wrapper');
-  ew.scrollLeft = 0;
-  updateSlider();
 }
 
 function handleEditorKey(e) {
