@@ -1238,10 +1238,11 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
       <a href="https://www.aozora.gr.jp" target="_blank" style="color:var(--accent-light);">青空文庫 →</a>
     </p>
     <div id="aozora-book-list" style="margin-bottom:10px;"></div>
-    <label class="notes-add-btn" style="cursor:pointer;display:inline-block;margin-bottom:12px;">
+    <label class="notes-add-btn" style="cursor:pointer;display:inline-block;margin-bottom:4px;">
       📂 ファイルを読み込む（.html / .txt）
       <input type="file" accept=".txt,.html,.htm" multiple style="display:none" onchange="loadAozoraFiles(event)">
     </label>
+    <div id="aozora-file-info" style="font-size:11px;opacity:0.5;margin-bottom:8px;"></div>
     <p style="font-size:10px;color:var(--ink-light);opacity:0.4;margin-bottom:12px;">青空文庫のHTMLページを「名前を付けて保存」して読み込むのがおすすめです</p>
 
     <!-- 検索モード切り替え -->
@@ -1266,6 +1267,9 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
 
     <button onclick="debugAozora()" style="margin-top:8px;background:none;border:1px dashed var(--paper-deep);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--ink-light);opacity:0.5;width:100%;">🔍 デバッグ確認</button>
   </div>
+
+  <!-- 青空検索結果 -->
+  <div id="aozora-results" style="margin-top:8px;"></div>
 
   <!-- 結果表示エリア -->
   <div id="constellation-result" style="display:none;">
@@ -2256,7 +2260,7 @@ async function runAozoraAiSearch() {
   if (!aozoraText) { toast('まずファイルを読み込んでください'); return; }
   const key = (document.getElementById('api-key-input') || {}).value?.trim();
   if (!key) { toast('APIキーを設定してください（添削ボタンから）'); return; }
-  const kwInput = document.getElementById('aozora-keyword-input');
+  const kwInput = document.getElementById('aozora-ai-input');
   const query = kwInput ? kwInput.value.trim() : '';
   if (!query) { toast('検索キーワードを入力してください'); return; }
   const results = document.getElementById('aozora-results');
