@@ -1957,25 +1957,54 @@ function insertPhrase(el) {
 function openProofModal() {
   const m = document.getElementById('modal-overlay');
   if (m) m.classList.add('show');
+  // 現在の章のテキストを自動セット
+  const ch = state.chapters.find(c => c.id === state.activeChapter);
+  const ta = document.getElementById('modal-text-preview');
+  if (ta && ch) ta.value = (ch.content || '').slice(0, 2000);
+  const resultEl = document.getElementById('modal-result');
+  if (resultEl) resultEl.textContent = '';
+  const copyBtn = document.getElementById('copy-result-btn');
+  if (copyBtn) copyBtn.style.display = 'none';
 }
 async function runProof() {
   const key = (document.getElementById('api-key-input')||{}).value?.trim();
   if (!key) { toast('APIキーを入力してください'); return; }
-  const ch = state.chapters.find(c => c.id === state.activeChapter);
-  if (!ch) return;
-  const result = document.getElementById('proof-result');
-  result.textContent = '添削中…';
+
+  const textArea = document.getElementById('modal-text-preview');
+  const instruction = (document.getElementById('proof-instruction')||{}).value?.trim() || '';
+  const text = textArea ? textArea.value.trim() : '';
+  if (!text) { toast('添削するテキストを入力してください'); return; }
+
+  const resultEl = document.getElementById('modal-result');
+  const btn = document.getElementById('proof-btn');
+  resultEl.textContent = '添削中…';
+  if (btn) { btn.disabled = true; btn.textContent = '添削中…'; }
+
+  const prompt = instruction
+    ? `以下の小説の文章を添削してください。指示：${instruction}\n\n${text}`
+    : `以下の小説の文章を添削してください。文体・表現・リズムについてコメントし、改善案を提示してください。\n\n${text}`;
+
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000,
-        messages: [{ role: 'user', content: `以下の小説の文章を添削してください。\n\n${(ch.content||'').slice(0,3000)}` }]
+        messages: [{ role: 'user', content: prompt }]
       })
     });
     const data = await res.json();
-    result.textContent = data.content?.[0]?.text || 'エラー';
-  } catch(e) { result.textContent = 'エラー: ' + e.message; }
+    if (data.error) {
+      resultEl.textContent = 'エラー: ' + data.error.message;
+    } else {
+      resultEl.textContent = data.content?.[0]?.text || 'エラーが発生しました';
+      const copyBtn = document.getElementById('copy-result-btn');
+      if (copyBtn) copyBtn.style.display = '';
+    }
+  } catch(e) {
+    resultEl.textContent = 'エラー: ' + e.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '添削を実行'; }
+  }
 }
 
 
@@ -2103,11 +2132,9 @@ function onApiKeyInput() {
 }
 
 function copyResult() {
-  const result = document.getElementById('proof-result');
+  const result = document.getElementById('modal-result');
   if (!result) return;
   navigator.clipboard.writeText(result.textContent).then(() => toast('コピーしました'));
-  const btn = document.getElementById('copy-result-btn');
-  if (btn) btn.style.display = '';
 }
 
 // 人物ノート
