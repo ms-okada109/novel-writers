@@ -1781,7 +1781,7 @@ function openExportModal() {
 
 function closeModal(id) {
   const m = document.getElementById(id);
-  if (m) m.style.display = 'none';
+  if (m) { m.classList.remove('show'); m.style.display = ''; }
 }
 
 function exportTxt() {
@@ -1955,8 +1955,8 @@ function insertPhrase(el) {
 
 // Proof
 function openProofModal() {
-  const m = document.getElementById('proof-modal');
-  if (m) m.style.display = 'flex';
+  const m = document.getElementById('modal-overlay');
+  if (m) m.classList.add('show');
 }
 async function runProof() {
   const key = (document.getElementById('api-key-input')||{}).value?.trim();
