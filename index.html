@@ -1366,7 +1366,7 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
       <div class="modal-label">添削指示（任意）</div>
       <input type="text" id="proof-instruction" class="modal-input" placeholder="例：文体を統一して、読みやすくしてください">
     </div>
-    <div id="modal-result"></div>
+    <div id="proof-output"></div>
     <div class="modal-actions">
       <button class="modal-btn" onclick="closeModal('modal-overlay')">閉じる</button>
       <button class="modal-btn" id="copy-result-btn" onclick="copyResult()" style="display:none;">コピー</button>
@@ -1961,7 +1961,7 @@ function openProofModal() {
   const ch = state.chapters.find(c => c.id === state.activeChapter);
   const ta = document.getElementById('modal-text-preview');
   if (ta && ch) ta.value = (ch.content || '').slice(0, 2000);
-  const resultEl = document.getElementById('modal-result');
+  const resultEl = document.getElementById('proof-output');
   if (resultEl) resultEl.textContent = '';
   const copyBtn = document.getElementById('copy-result-btn');
   if (copyBtn) copyBtn.style.display = 'none';
@@ -1975,9 +1975,9 @@ async function runProof() {
   const text = textArea ? textArea.value.trim() : '';
   if (!text) { toast('添削するテキストを入力してください'); return; }
 
-  const resultEl = document.getElementById('modal-result');
+  const resultEl = document.getElementById('proof-output');
   const btn = document.getElementById('proof-btn');
-  resultEl.textContent = '添削中…';
+  if (resultEl) resultEl.textContent = '添削中…';
   if (btn) { btn.disabled = true; btn.textContent = '添削中…'; }
 
   const prompt = instruction
@@ -2132,7 +2132,7 @@ function onApiKeyInput() {
 }
 
 function copyResult() {
-  const result = document.getElementById('modal-result');
+  const result = document.getElementById('proof-output');
   if (!result) return;
   navigator.clipboard.writeText(result.textContent).then(() => toast('コピーしました'));
 }
