@@ -2283,20 +2283,50 @@ async function runAozoraAiSearch() {
   const query = kwInput ? kwInput.value.trim() : '';
   if (!query) { toast('検索キーワードを入力してください'); return; }
   const results = document.getElementById('aozora-results');
-  if (results) results.innerHTML = 'AI検索中…';
-  const sample = aozoraText.slice(0, 15000);
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000,
-        messages: [{ role: 'user', content: `以下の文章から「${query}」に関連する印象的な表現を5〜10個抜き出してください。\n\n${sample}` }]
-      })
-    });
-    const data = await res.json();
-    if (results) results.innerHTML = `<div style="padding:16px;white-space:pre-wrap;font-size:13px;">${esc(data.content?.[0]?.text || 'エラー')}</div>`;
-  } catch(e) {
-    if (results) results.innerHTML = `<div style="padding:16px;">エラー: ${esc(e.message)}</div>`;
+
+  // 全文を30,000文字ずつに分割して全チャンクを検索
+  const CHUNK = 30000;
+  const chunks = [];
+  for (let i = 0; i < aozoraText.length; i += CHUNK) {
+    chunks.push(aozoraText.slice(i, i + CHUNK));
+  }
+
+  if (results) results.innerHTML = `<div style="padding:12px;opacity:0.6;">全文(${aozoraText.length.toLocaleString()}文字)を${chunks.length}分割して検索中… 0/${chunks.length}</div>`;
+
+  const allHits = [];
+  for (let i = 0; i < chunks.length; i++) {
+    if (results) results.innerHTML = `<div style="padding:12px;opacity:0.6;">検索中… ${i+1}/${chunks.length}</div>`;
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500,
+          messages: [{ role: 'user', content: `以下のテキスト（全体の${i+1}/${chunks.length}部分）から「${query}」に関連する印象的な表現や文章を見つけたら抜き出してください。見つからない場合は「該当なし」とだけ答えてください。\n\n${chunks[i]}` }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || '';
+      if (text && !text.includes('該当なし') && text.trim() !== '') {
+        allHits.push({ part: i + 1, text });
+      }
+    } catch(e) {
+      allHits.push({ part: i + 1, text: `エラー: ${e.message}` });
+    }
+    // レートリミット対策で少し待つ
+    if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 500));
+  }
+
+  if (results) {
+    if (allHits.length === 0) {
+      results.innerHTML = '<div style="padding:20px;opacity:0.5;">該当する表現が見つかりませんでした</div>';
+    } else {
+      results.innerHTML = allHits.map(h =>
+        `<div style="padding:14px;border-bottom:1px solid var(--paper-deep);">
+          <div style="font-size:10px;opacity:0.4;margin-bottom:6px;">第${h.part}部分</div>
+          <div style="font-size:13px;white-space:pre-wrap;line-height:1.9;">${esc(h.text)}</div>
+        </div>`
+      ).join('');
+    }
   }
 }
 
