@@ -2227,7 +2227,57 @@ function loadAozoraFiles(event) {
     if (info) info.textContent = `📄 ${file.name}（${text.length.toLocaleString()}文字）`;
     toast(`読み込み完了: ${text.length.toLocaleString()}文字`);
   };
+  reader.onerror = () => {
+    // UTF-8失敗→Shift-JISで再試行
+    const r2 = new FileReader();
+    r2.onload = e => {
+      let text = e.target.result;
+      if (file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+        const div = document.createElement('div');
+        div.innerHTML = text;
+        text = div.textContent;
+      }
+      aozoraText = text;
+      const info = document.getElementById('aozora-file-info');
+      if (info) info.textContent = `📄 ${file.name}（${text.length.toLocaleString()}文字）`;
+      toast(`読み込み完了: ${text.length.toLocaleString()}文字`);
+    };
+    r2.readAsText(file, 'Shift_JIS');
+  };
+  // まずUTF-8で試み、文字化けしていたらShift-JISで再読み込み
   reader.readAsText(file, 'UTF-8');
+  // UTF-8読み込み後に文字化けチェック
+  reader.onload = e => {
+    let text = e.target.result;
+    // 文字化けチェック：置換文字(U+FFFD)が多い場合はShift-JISで再試行
+    const garbled = (text.match(/\ufffd/g) || []).length;
+    if (garbled > 10) {
+      const r2 = new FileReader();
+      r2.onload = e2 => {
+        let t = e2.target.result;
+        if (file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+          const div = document.createElement('div');
+          div.innerHTML = t;
+          t = div.textContent;
+        }
+        aozoraText = t;
+        const info = document.getElementById('aozora-file-info');
+        if (info) info.textContent = `📄 ${file.name}（${t.length.toLocaleString()}文字）`;
+        toast(`読み込み完了: ${t.length.toLocaleString()}文字`);
+      };
+      r2.readAsText(file, 'Shift_JIS');
+      return;
+    }
+    if (file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+      const div = document.createElement('div');
+      div.innerHTML = text;
+      text = div.textContent;
+    }
+    aozoraText = text;
+    const info = document.getElementById('aozora-file-info');
+    if (info) info.textContent = `📄 ${file.name}（${text.length.toLocaleString()}文字）`;
+    toast(`読み込み完了: ${text.length.toLocaleString()}文字`);
+  };
 }
 
 function runAozoraSearch() {
