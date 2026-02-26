@@ -2213,21 +2213,24 @@ function loadAozoraFiles(event) {
   const files = event.target.files;
   if (!files || !files.length) return;
   const file = files[0];
-  // 青空文庫はShift-JISが標準なので最初からShift-JISで読む
   const reader = new FileReader();
   reader.onload = e => {
-    let text = e.target.result;
-    const garbled = (text.match(/\ufffd/g) || []).length;
-    if (garbled > 10) {
-      // Shift-JISでも文字化け→UTF-8で再試行
-      const r2 = new FileReader();
-      r2.onload = e2 => { processAozoraText(e2.target.result, file); };
-      r2.readAsText(file, 'UTF-8');
-    } else {
-      processAozoraText(text, file);
+    const buffer = e.target.result;
+    // TextDecoderでShift-JIS(windows-31j)デコード
+    let text;
+    try {
+      text = new TextDecoder('windows-31j').decode(buffer);
+      // 文字化けチェック
+      const garbled = (text.match(/\ufffd/g) || []).length;
+      if (garbled > 20) {
+        text = new TextDecoder('utf-8').decode(buffer);
+      }
+    } catch(e) {
+      text = new TextDecoder('utf-8').decode(buffer);
     }
+    processAozoraText(text, file);
   };
-  reader.readAsText(file, 'Shift_JIS');
+  reader.readAsArrayBuffer(file);
 }
 
 function processAozoraText(text, file) {
@@ -2236,9 +2239,10 @@ function processAozoraText(text, file) {
     div.innerHTML = text;
     text = div.textContent;
   }
-  // 青空文庫のルビ記法除去
+  // ルビ・注記除去
   text = text.replace(/《[^》]*》/g, '');
-  text = text.replace(/［[^\]]*］/g, '');
+  text = text.replace(/｜/g, '');
+  text = text.replace(/\[[^\]]*\]/g, '');
   aozoraText = text;
   const info = document.getElementById('aozora-file-info');
   if (info) info.textContent = `📄 ${file.name}（${text.length.toLocaleString()}文字）`;
