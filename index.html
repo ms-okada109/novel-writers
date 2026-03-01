@@ -41,10 +41,9 @@ body {
   font-family: 'Noto Sans JP', sans-serif;
   background: var(--paper);
   color: var(--ink);
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   transition: background 0.3s, color 0.3s;
 }
 
@@ -201,7 +200,7 @@ body {
 #add-chapter-btn:hover { color: var(--accent-light); }
 
 /* ── MAIN ── */
-#main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 
 /* Topbar */
 #topbar {
@@ -284,7 +283,7 @@ body {
 #font-slider { width: 60px; accent-color: var(--accent); }
 
 /* ── PANELS ── */
-#content { flex: 1; position: relative; }
+#content { flex: 1; overflow: hidden; position: relative; }
 .panel { position: absolute; inset: 0; display: none; overflow: hidden; }
 .panel.active { display: flex; }
 
@@ -294,14 +293,15 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
 /* ── EDITOR ── */
 #panel-editor {
   flex-direction: row;
-  overflow: visible;
+  overflow: hidden;
 }
 #editor-main-col {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 #editor-wrapper {
   flex: 1;
@@ -2693,7 +2693,11 @@ if (!state.chapters || state.chapters.length === 0) {
   renderChapterList();
   loadChapter(state.activeChapter || state.chapters[0].id);
 }
-renderStamps();
+setTimeout(() => {
+  const ch = state.chapters.find(c => c.id === state.activeChapter);
+  renderGenko(ch ? (ch.content || '') : '', undefined);
+  focusEditor();
+}, 100);
 updatePet();
 checkBackupWarning();
 
