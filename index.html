@@ -993,6 +993,53 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
 
 /* Today's word count badge */
 #today-count { font-size: 10px; padding: 1px 7px; background: rgba(196,118,58,0.15); color: var(--accent-light); border-radius: 10px; letter-spacing: 0.05em; }
+/* ── PLOT AREA ── */
+#plot-area {
+  flex-shrink: 0;
+  border-top: 1px solid var(--paper-deep);
+  background: var(--paper-warm);
+}
+#plot-area-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+#plot-area-header:hover { background: rgba(0,0,0,0.03); }
+#plot-body {
+  padding: 0 16px 10px;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+  max-height: 200px;
+}
+#plot-body.collapsed { max-height: 0; padding-bottom: 0; }
+
+/* ── PDF PRINT ── */
+@media print {
+  body > * { display: none !important; }
+  #print-area { display: block !important; }
+}
+#print-area {
+  display: none;
+}
+#print-area .print-chapter {
+  writing-mode: vertical-rl;
+  font-family: 'Shippori Mincho', serif;
+  font-size: 14pt;
+  line-height: 2;
+  padding: 40px;
+  page-break-after: always;
+  white-space: pre-wrap;
+}
+#print-area .print-chapter-title {
+  font-size: 16pt;
+  font-weight: bold;
+  margin-bottom: 2em;
+  writing-mode: vertical-rl;
+}
+
 </style>
 </head>
 <body>
@@ -1082,6 +1129,22 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
             data-placeholder="ここに物語を綴る……"
             oninput="onEditorInput()"
             onkeydown="handleEditorKey(event)">
+          </div>
+        </div>
+
+        <!-- プロットエリア -->
+        <div id="plot-area">
+          <div id="plot-area-header" onclick="togglePlotArea()">
+            <span style="font-size:12px;color:var(--ink-light);opacity:0.6;">📋 プロット</span>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button id="plot-ai-btn" onclick="event.stopPropagation();openPlotModal()" style="background:var(--accent);color:white;border:none;border-radius:12px;padding:3px 12px;font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">✦ AI案を生成</button>
+              <span id="plot-toggle-icon" style="font-size:11px;opacity:0.4;transition:transform 0.2s;">▼</span>
+            </div>
+          </div>
+          <div id="plot-body">
+            <textarea id="plot-input" placeholder="この章のプロットをメモ…"
+              oninput="onPlotInput(this.value)"
+              style="width:100%;border:none;background:transparent;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--ink);resize:none;outline:none;min-height:72px;padding:8px 0;line-height:1.8;box-sizing:border-box;"></textarea>
           </div>
         </div>
 
@@ -1402,6 +1465,10 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
       <span class="eo-icon">📄</span>
       <div><h4>テキスト (.txt)</h4><p>全章をまとめてテキストファイルに</p></div>
     </div>
+    <div class="export-option" onclick="exportPDF()">
+      <span class="eo-icon">📕</span>
+      <div><h4>PDF（縦書き）</h4><p>印刷ダイアログからPDF保存</p></div>
+    </div>
     <div class="export-option" onclick="exportJSON()">
       <span class="eo-icon">📦</span>
       <div><h4>バックアップ (.json)</h4><p>全データ（章・ノート）を保存・他ブラウザに移行</p></div>
@@ -1450,6 +1517,29 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
       <button class="modal-btn" onclick="closeModal('gist-modal-overlay')">閉じる</button>
       <button class="modal-btn" onclick="disconnectGist()" style="color:var(--red);">同期解除</button>
       <button class="modal-btn primary" id="gist-save-btn" onclick="setupGist()">接続する</button>
+    </div>
+  </div>
+</div>
+
+<div id="print-area"></div>
+
+<!-- プロット生成モーダル -->
+<div id="plot-modal-overlay" style="position:fixed;inset:0;background:rgba(26,16,8,0.55);display:none;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(3px);">
+  <div class="modal" style="max-width:500px;">
+    <h2>✦ AIプロット案を生成</h2>
+    <div class="modal-section">
+      <div class="modal-label">スタイル・指示（任意）</div>
+      <input type="text" id="plot-style-input" class="modal-input" placeholder="例：XJAPANのhideが考えそうな展開で　例：どんでん返しを入れて">
+    </div>
+    <div class="modal-section">
+      <div class="modal-label">参考にする情報</div>
+      <div style="font-size:11px;opacity:0.5;line-height:1.8;">現在の章のテキスト・前後章のプロット・人物ノート・アイデア帳を自動参照します</div>
+    </div>
+    <div id="plot-modal-result" style="margin-top:8px;font-size:13px;line-height:1.9;white-space:pre-wrap;font-family:'Shippori Mincho',serif;color:var(--ink);max-height:300px;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closePlotModal()">閉じる</button>
+      <button class="modal-btn" id="plot-insert-btn" onclick="insertPlotResult()" style="display:none;">プロット欄に挿入</button>
+      <button class="modal-btn primary" id="plot-gen-btn" onclick="runPlotGeneration()">✦ 生成する</button>
     </div>
   </div>
 </div>
@@ -1798,6 +1888,120 @@ function exportTxt() {
   a.click();
   closeModal('export-modal');
 }
+
+function exportPDF() {
+  closeModal('export-modal-overlay');
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = state.chapters.map(ch => `
+    <div class="print-chapter">
+      <div class="print-chapter-title">${ch.title || ''}</div>
+      ${(ch.content || '').replace(/\n/g, '<br>')}
+    </div>
+  `).join('');
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => { printArea.innerHTML = ''; }, 1000);
+  }, 300);
+}
+
+// ── プロット機能 ──
+let _plotCollapsed = false;
+
+function togglePlotArea() {
+  _plotCollapsed = !_plotCollapsed;
+  const body = document.getElementById('plot-body');
+  const icon = document.getElementById('plot-toggle-icon');
+  if (body) body.classList.toggle('collapsed', _plotCollapsed);
+  if (icon) icon.style.transform = _plotCollapsed ? 'rotate(-90deg)' : '';
+}
+
+function onPlotInput(val) {
+  const ch = state.chapters.find(c => c.id === state.activeChapter);
+  if (ch) { ch.plot = val; saveState(); }
+}
+
+function loadPlot(id) {
+  const ch = state.chapters.find(c => c.id === id);
+  const ta = document.getElementById('plot-input');
+  if (ta) ta.value = ch ? (ch.plot || '') : '';
+}
+
+function openPlotModal() {
+  const m = document.getElementById('plot-modal-overlay');
+  if (m) m.style.display = 'flex';
+  document.getElementById('plot-modal-result').textContent = '';
+  document.getElementById('plot-insert-btn').style.display = 'none';
+}
+
+function closePlotModal() {
+  const m = document.getElementById('plot-modal-overlay');
+  if (m) m.style.display = 'none';
+}
+
+function insertPlotResult() {
+  const result = document.getElementById('plot-modal-result').textContent;
+  const ta = document.getElementById('plot-input');
+  if (ta) {
+    ta.value = result;
+    onPlotInput(result);
+  }
+  closePlotModal();
+  toast('プロット欄に挿入しました');
+}
+
+async function runPlotGeneration() {
+  const key = (document.getElementById('api-key-input') || {}).value?.trim();
+  if (!key) { toast('APIキーを設定してください（添削ボタンから）'); return; }
+
+  const style = (document.getElementById('plot-style-input') || {}).value?.trim() || '';
+  const ch = state.chapters.find(c => c.id === state.activeChapter);
+  if (!ch) return;
+
+  // 前後の章のプロットを収集
+  const idx = state.chapters.findIndex(c => c.id === state.activeChapter);
+  const prevPlots = state.chapters.slice(Math.max(0, idx - 2), idx).map(c => `【${c.title}のプロット】${c.plot || 'なし'}`).join('\n');
+  const nextPlots = state.chapters.slice(idx + 1, idx + 3).map(c => `【${c.title}のプロット】${c.plot || 'なし'}`).join('\n');
+  const chars = (state.characters || []).map(c => `${c.name}：${c.memo}`).filter(Boolean).join('\n');
+  const ideas = (state.ideas || []).map(i => i.text).filter(Boolean).slice(0, 10).join('\n');
+  const currentContent = (ch.content || '').slice(0, 1000);
+  const currentPlot = ch.plot || '';
+
+  const prompt = [
+    `あなたは優秀な小説のプロット作家です。以下の情報をもとに「${ch.title}」のプロット案を提案してください。`,
+    style ? `\n【スタイル指示】${style}` : '',
+    prevPlots ? `\n【前の章のプロット】\n${prevPlots}` : '',
+    nextPlots ? `\n【後の章のプロット】\n${nextPlots}` : '',
+    currentPlot ? `\n【現在のプロットメモ】\n${currentPlot}` : '',
+    currentContent ? `\n【現在の章の冒頭テキスト】\n${currentContent}` : '',
+    chars ? `\n【登場人物】\n${chars}` : '',
+    ideas ? `\n【アイデアメモ】\n${ideas}` : '',
+    '\n\n具体的なシーン・展開・セリフのヒントを含めて、300〜500文字程度で提案してください。',
+  ].join('');
+
+  const resultEl = document.getElementById('plot-modal-result');
+  const btn = document.getElementById('plot-gen-btn');
+  resultEl.textContent = '✦ 生成中…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'エラーが発生しました';
+    resultEl.textContent = text;
+    document.getElementById('plot-insert-btn').style.display = '';
+  } catch(e) {
+    resultEl.textContent = 'エラー: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 
 function exportJSON() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -2596,6 +2800,7 @@ function loadChapter(id) {
   drawerFilterTag = '__all__';
   if (document.getElementById('phrase-drawer').classList.contains('open')) renderPhraseDrawer();
   renderMemos();
+  loadPlot(id);
   setTimeout(() => {
     const ew = document.getElementById('editor-wrapper');
     ew.scrollLeft = 0;
