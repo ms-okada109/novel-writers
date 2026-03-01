@@ -1144,7 +1144,7 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
               <span id="plot-toggle-icon" style="font-size:11px;opacity:0.4;transition:transform 0.2s;">▼</span>
             </div>
           </div>
-          <div id="plot-body">
+          <div id="plot-body" class="collapsed">
             <textarea id="plot-input" placeholder="この章のプロットをメモ…"
               oninput="onPlotInput(this.value)"
               style="width:100%;border:none;background:transparent;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--ink);resize:none;outline:none;min-height:72px;padding:8px 0;line-height:1.8;box-sizing:border-box;"></textarea>
@@ -1901,7 +1901,7 @@ function exportPDF() {
 }
 
 // ── プロット機能 ──
-let _plotCollapsed = false;
+let _plotCollapsed = true;
 
 function togglePlotArea() {
   _plotCollapsed = !_plotCollapsed;
