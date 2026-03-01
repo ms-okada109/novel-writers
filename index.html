@@ -1046,6 +1046,85 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
   writing-mode: vertical-rl;
 }
 
+/* ── 文庫本ページレイアウト ── */
+#bunko-pages {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 32px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  background: var(--paper);
+}
+.bunko-page {
+  width: 100%;
+  max-width: 720px;
+  min-height: 560px;
+  background: var(--paper);
+  border: 1px solid rgba(180,160,130,0.25);
+  border-radius: 2px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  margin-bottom: 0;
+  padding: 40px 48px;
+  writing-mode: vertical-rl;
+  font-family: 'Shippori Mincho', serif;
+  font-size: 16px;
+  line-height: 2em;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  cursor: text;
+  position: relative;
+  box-sizing: border-box;
+  height: auto;
+}
+.bunko-page:focus {
+  outline: none;
+  box-shadow: 0 2px 16px rgba(180,120,60,0.18);
+}
+.bunko-page-num {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  opacity: 0.3;
+  font-family: 'Noto Sans JP', sans-serif;
+  letter-spacing: 0.1em;
+}
+.bunko-divider {
+  width: 100%;
+  max-width: 720px;
+  height: 1px;
+  background: rgba(180,160,130,0.3);
+  margin: 16px 0;
+}
+.bunko-active-input {
+  width: 100%;
+  max-width: 720px;
+  min-height: 560px;
+  background: var(--paper);
+  border: 1px solid var(--accent-light);
+  border-radius: 2px;
+  box-shadow: 0 2px 16px rgba(180,120,60,0.18);
+  padding: 40px 48px;
+  writing-mode: vertical-rl;
+  font-family: 'Shippori Mincho', serif;
+  font-size: 16px;
+  line-height: 2em;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-all;
+  outline: none;
+  cursor: text;
+  box-sizing: border-box;
+  resize: none;
+  overflow: hidden;
+}
+
 </style>
 </head>
 <body>
@@ -1130,7 +1209,16 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
     <!-- 本編エディタ -->
     <div class="panel active" id="panel-editor">
       <div id="editor-main-col">
-        <div id="editor-wrapper">
+        <!-- 文庫本ページ表示エリア -->
+        <div id="bunko-pages"></div>
+        <!-- 隠しテキストエリア（データ保存用） -->
+        <textarea id="editor-textarea"
+          oninput="onEditorInput()"
+          onkeydown="handleEditorKey(event)"
+          placeholder="ここに物語を綴る……"
+          style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;"></textarea>
+        <!-- アクティブページの入力エリア（クリックで表示） -->
+        <div id="editor-wrapper" style="display:none;">
           <div id="editor" contenteditable="true"
             data-placeholder="ここに物語を綴る……"
             oninput="onEditorInput()"
@@ -2766,81 +2854,160 @@ function cleanContent(raw) {
   return raw.replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '');
 }
 
+// ── 文庫本ページシステム ──
+const BUNKO_COLS = 38;  // 1ページの横文字数（列数）
+const BUNKO_ROWS = 16;  // 1ページの縦文字数（行の長さ）
+const CHARS_PER_PAGE = BUNKO_COLS * BUNKO_ROWS;
+
+function splitIntoPages(text) {
+  // テキストを改行を考慮しながらページに分割
+  const pages = [];
+  const lines = text.split('\n');
+  let currentPageLines = [];
+  let currentColCount = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // この行が何列必要か計算（全角=1文字=1行分）
+    const colsNeeded = Math.ceil(line.length / BUNKO_ROWS) || 1;
+
+    if (currentColCount + colsNeeded > BUNKO_COLS && currentPageLines.length > 0) {
+      pages.push(currentPageLines.join('\n'));
+      currentPageLines = [line];
+      currentColCount = colsNeeded;
+    } else {
+      currentPageLines.push(line);
+      currentColCount += colsNeeded;
+    }
+  }
+  if (currentPageLines.length > 0) {
+    pages.push(currentPageLines.join('\n'));
+  }
+  return pages.length ? pages : [''];
+}
+
+let _editingPageIndex = -1;
+
+function renderBunkoPages(text, focusPageIndex) {
+  const container = document.getElementById('bunko-pages');
+  if (!container) return;
+
+  const pages = splitIntoPages(text || '');
+  // 最後に空ページを追加（入力用）
+  if (pages[pages.length - 1].trim() !== '' || pages.length === 0) {
+    pages.push('');
+  }
+
+  container.innerHTML = '';
+
+  pages.forEach((pageText, idx) => {
+    if (idx === _editingPageIndex) {
+      // 編集中のページはcontenteditable
+      const div = document.createElement('div');
+      div.className = 'bunko-active-input';
+      div.contentEditable = 'true';
+      div.textContent = pageText;
+      div.dataset.pageIndex = idx;
+      div.addEventListener('input', onBunkoInput);
+      div.addEventListener('blur', () => {
+        _editingPageIndex = -1;
+        const ch = state.chapters.find(c => c.id === state.activeChapter);
+        renderBunkoPages(ch ? ch.content : '', -1);
+      });
+      div.addEventListener('keydown', handleEditorKey);
+      container.appendChild(div);
+      if (focusPageIndex === idx) {
+        setTimeout(() => {
+          div.focus();
+          // カーソルを末尾に
+          const range = document.createRange();
+          const sel = window.getSelection();
+          range.selectNodeContents(div);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }, 10);
+      }
+    } else {
+      // 表示ページ
+      const div = document.createElement('div');
+      div.className = 'bunko-page';
+      div.textContent = pageText || (idx === pages.length - 1 ? 'ここに物語を綴る……' : '');
+      if (idx === pages.length - 1 && !pageText) {
+        div.style.opacity = '0.3';
+        div.style.fontStyle = 'italic';
+      }
+      div.dataset.pageIndex = idx;
+      div.addEventListener('click', () => {
+        _editingPageIndex = idx;
+        const ch = state.chapters.find(c => c.id === state.activeChapter);
+        renderBunkoPages(ch ? ch.content : '', idx);
+      });
+      const pageNum = document.createElement('div');
+      pageNum.className = 'bunko-page-num';
+      pageNum.textContent = `— ${idx + 1} —`;
+      div.appendChild(pageNum);
+      container.appendChild(div);
+    }
+
+    // ページ間の区切り（最後のページ以外）
+    if (idx < pages.length - 1) {
+      const divider = document.createElement('div');
+      divider.className = 'bunko-divider';
+      container.appendChild(divider);
+    }
+  });
+}
+
+function onBunkoInput(e) {
+  // 編集中ページのテキストを全テキストに反映
+  const ch = state.chapters.find(c => c.id === state.activeChapter);
+  if (!ch) return;
+
+  const container = document.getElementById('bunko-pages');
+  const pages = splitIntoPages(ch.content || '');
+  while (pages.length <= _editingPageIndex) pages.push('');
+
+  const editedText = e.target.innerText || e.target.textContent;
+  pages[_editingPageIndex] = editedText;
+
+  // 空の末尾ページは削除
+  while (pages.length > 1 && pages[pages.length - 1].trim() === '') {
+    pages.pop();
+  }
+
+  ch.content = pages.join('\n');
+  saveState();
+  updateCharCount();
+  updateTodayCount();
+  checkAutoBackup();
+}
+
 function loadChapter(id) {
   const ch = state.chapters.find(c => c.id === id);
   if (!ch) return;
   state.activeChapter = id;
   const text = cleanContent(ch.content || '');
   ch.content = text;
-  document.getElementById('editor').innerHTML = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
+  _editingPageIndex = -1;
+  renderBunkoPages(text, -1);
   updateCharCount();
   renderChapterList();
   drawerFilterTag = '__all__';
   if (document.getElementById('phrase-drawer').classList.contains('open')) renderPhraseDrawer();
   renderMemos();
   loadPlot(id);
-  setTimeout(() => {
-    const ew = document.getElementById('editor-wrapper');
-    ew.scrollLeft = 0;
-  }, 100);
 }
 
-// スクロール位置をロックする仕組み
-let _isEditing = false;
-let _lockedScroll = 0;
-
-(function initScrollLock() {
-  const ew = document.getElementById('editor-wrapper');
-  const ed = document.getElementById('editor');
-  if (!ew || !ed) return;
-
-  // 入力開始時にスクロール位置を記録
-  ed.addEventListener('keydown', () => {
-    _lockedScroll = ew.scrollLeft;
-    _isEditing = true;
-  });
-
-  // スクロールイベントで入力中のリセットを打ち消す
-  ew.addEventListener('scroll', () => {
-    if (_isEditing) {
-      ew.scrollLeft = _lockedScroll;
-    }
-  });
-
-  // 入力完了後にロック解除
-  ed.addEventListener('keyup', () => {
-    _isEditing = false;
-  });
-})();
-
 function onEditorInput() {
-  const ch = state.chapters.find(c => c.id === state.activeChapter);
-  if (ch) {
-    const html = document.getElementById('editor').innerHTML;
-    ch.content = html
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/div>/gi, '\n')
-      .replace(/<div>/gi, '')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/\n+$/, '');
-    saveState();
-  }
-  updateCharCount();
-  updateTodayCount();
-  checkAutoBackup();
+  // 後方互換（直接呼ばれた場合）
+  onBunkoInput({ target: document.getElementById('editor') });
 }
 
 function handleEditorKey(e) {
   if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '　　'); }
 }
+
 </script>
 </body>
 </html>
