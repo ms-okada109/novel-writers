@@ -306,7 +306,7 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   flex: 1;
   min-height: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   background: var(--paper);
   background-image: repeating-linear-gradient(
     90deg, transparent, transparent calc(1.8em - 1px),
@@ -324,14 +324,15 @@ mark { background: rgba(196,118,58,0.3); border-radius: 2px; }
   line-height: 1.8em;
   color: var(--ink);
   outline: none;
-  height: 100%;
+  height: calc(1.8em * 40 + 48px);
+  min-height: calc(1.8em * 40 + 48px);
   min-width: 100%;
   width: max-content;
   white-space: pre-wrap;
   word-break: break-all;
   caret-color: var(--accent);
   letter-spacing: 0.08em;
-  padding: 40px 48px;
+  padding: 24px 48px;
   transition: font-size 0.15s;
 }
 #editor:empty::before { content: attr(data-placeholder); color: rgba(74,56,40,0.28); pointer-events: none; }
@@ -1003,16 +1004,16 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: 4px 16px;
   cursor: pointer;
   user-select: none;
 }
 #plot-area-header:hover { background: rgba(0,0,0,0.03); }
 #plot-body {
-  padding: 0 16px 10px;
+  padding: 0 16px 6px;
   overflow: hidden;
   transition: max-height 0.25s ease;
-  max-height: 200px;
+  max-height: 80px;
 }
 #plot-body.collapsed { max-height: 0; padding-bottom: 0; }
 
@@ -1149,10 +1150,10 @@ body.focus-mode #phrase-drawer { width: 0 !important; min-width: 0 !important; }
         </div>
 
         <!-- メモエリア -->
-        <div id="memo-area">
-          <div id="memo-area-header">
+        <div id="memo-area" style="flex-shrink:0;max-height:80px;overflow-y:auto;border-top:1px solid var(--paper-deep);">
+          <div id="memo-area-header" style="padding:4px 16px;display:flex;align-items:center;justify-content:space-between;">
             <span style="font-size:12px;color:var(--ink-light);opacity:0.6;">📝 メモ・意図</span>
-            <button onclick="addMemo()" style="background:var(--accent);color:white;border:none;border-radius:12px;padding:3px 12px;font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">＋ 追加</button>
+            <button onclick="addMemo()" style="background:var(--accent);color:white;border:none;border-radius:12px;padding:2px 10px;font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">＋ 追加</button>
           </div>
           <div id="memo-list"></div>
         </div>
