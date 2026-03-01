@@ -2849,189 +2849,133 @@ function cleanContent(raw) {
 }
 
 // ── 原稿用紙システム ──
-const GENKO_COLS = 20;
-const GENKO_ROWS = 20;
-const GENKO_CHARS = GENKO_COLS * GENKO_ROWS; // 400文字/枚
+const GENKO_CHARS = 400; // 20×20
 
-let genkoText = '';      // 全テキスト
-let genkoCaret = 0;      // キャレット位置
-let genkoComposing = false;
-let genkoComposeBuf = '';
+function getGenkoText() {
+  const ch = state.chapters.find(c => c.id === state.activeChapter);
+  return ch ? (ch.content || '') : '';
+}
 
-function genkoRender() {
+function genkoRender(focusLast) {
   const area = document.getElementById('genko-area');
   if (!area) return;
 
+  const fullText = getGenkoText();
+
+  // 400文字ごとにシート分割
   const sheets = [];
-  // テキストをCOLS*ROWS単位でシートに分割（改行考慮）
-  let pos = 0;
-  while (pos <= genkoText.length) {
-    sheets.push(genkoText.slice(pos, pos + GENKO_CHARS));
-    if (pos + GENKO_CHARS >= genkoText.length) break;
-    pos += GENKO_CHARS;
+  for (let i = 0; i <= fullText.length; i += GENKO_CHARS) {
+    sheets.push(fullText.slice(i, i + GENKO_CHARS));
+    if (i + GENKO_CHARS >= fullText.length) break;
   }
   if (sheets.length === 0) sheets.push('');
-  // 末尾シートが満杯なら空シートを追加
+
+  // 末尾が満杯なら空シート追加
   if (sheets[sheets.length - 1].length >= GENKO_CHARS) sheets.push('');
 
-  area.innerHTML = '';
+  // 既存シートを更新（DOMを使い回す）
+  const existing = area.querySelectorAll('.genko-input');
+  
+  // シート数が変わったら全再描画
+  if (existing.length !== sheets.length) {
+    area.innerHTML = '';
+    sheets.forEach((text, idx) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'genko-sheet';
 
-  sheets.forEach((sheetText, sheetIdx) => {
-    const sheetStart = sheetIdx * GENKO_CHARS;
-    const sheetEnd = sheetStart + sheetText.length;
+      const input = document.createElement('div');
+      input.className = 'genko-input';
+      input.contentEditable = 'true';
+      input.setAttribute('data-sheet', idx);
+      input.textContent = text;
+      input.style.cssText = [
+        'width:100%',
+        'aspect-ratio:1',
+        'display:grid',
+        'grid-template-columns:repeat(20,1fr)',
+        'writing-mode:vertical-rl',
+        'font-family:"Shippori Mincho",serif',
+        'font-size:15px',
+        'line-height:1',
+        'color:var(--ink)',
+        'outline:none',
+        'padding:8px',
+        'box-sizing:border-box',
+        'border:1.5px solid rgba(180,140,100,0.5)',
+        'background:var(--paper)',
+        'caret-color:var(--accent)',
+        'word-break:break-all',
+        'overflow-wrap:break-word',
+        'white-space:pre-wrap',
+        'cursor:text',
+      ].join(';');
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'genko-sheet';
-    wrapper.addEventListener('click', (e) => {
-      // クリック位置からキャレット位置を計算
-      const rect = wrapper.querySelector('.genko-grid').getBoundingClientRect();
-      const cellW = rect.width / GENKO_COLS;
-      const cellH = rect.height / GENKO_ROWS;
-      // 縦書き：右から左が列、上から下が行
-      const col = Math.floor((rect.right - e.clientX) / cellW);
-      const row = Math.floor((e.clientY - rect.top) / cellH);
-      const clickedPos = sheetStart + col * GENKO_ROWS + row;
-      genkoCaret = Math.min(Math.max(0, clickedPos), genkoText.length);
-      genkoRender();
-      focusHiddenInput();
+      // マス目の背景をCSSで
+      input.style.backgroundImage = [
+        'repeating-linear-gradient(to left, rgba(180,140,100,0.25) 0px, rgba(180,140,100,0.25) 1px, transparent 1px, transparent calc(100%/20))',
+        'repeating-linear-gradient(to bottom, rgba(180,140,100,0.25) 0px, rgba(180,140,100,0.25) 1px, transparent 1px, transparent calc(100%/20))',
+      ].join(',');
+
+      input.addEventListener('input', onGenkoInput);
+      input.addEventListener('keydown', onGenkoKeydown);
+
+      const num = document.createElement('div');
+      num.className = 'genko-sheet-num';
+      num.textContent = `― ${idx + 1} ―`;
+
+      wrapper.appendChild(input);
+      wrapper.appendChild(num);
+      area.appendChild(wrapper);
     });
-
-    const grid = document.createElement('div');
-    grid.className = 'genko-grid';
-
-    // 縦書き: 列(右→左) × 行(上→下)
-    for (let col = 0; col < GENKO_COLS; col++) {
-      for (let row = 0; row < GENKO_ROWS; row++) {
-        const charIdx = sheetStart + col * GENKO_ROWS + row;
-        const cell = document.createElement('div');
-        cell.className = 'genko-cell';
-
-        if (charIdx === genkoCaret && !genkoComposing) {
-          cell.classList.add('caret-cell');
-        }
-
-        if (charIdx < genkoText.length) {
-          const ch = genkoText[charIdx];
-          if (ch === '\n') {
-            cell.textContent = '';
-          } else {
-            cell.textContent = ch;
-          }
-        } else if (charIdx === genkoText.length && sheetIdx === 0 && genkoText.length === 0) {
-          cell.classList.add('placeholder-cell');
-          if (col === 0 && row === 0) cell.textContent = '物';
-          if (col === 0 && row === 1) cell.textContent = '語';
-          if (col === 0 && row === 2) cell.textContent = 'を';
-          if (col === 0 && row === 3) cell.textContent = '綴';
-          if (col === 0 && row === 4) cell.textContent = 'る';
-          if (col === 0 && row === 5) cell.textContent = '…';
-        }
-
-        // 変換中のバッファを表示
-        if (genkoComposing && charIdx >= genkoCaret && charIdx < genkoCaret + genkoComposeBuf.length) {
-          const bufChar = genkoComposeBuf[charIdx - genkoCaret];
-          cell.textContent = bufChar || '';
-          cell.style.borderBottom = '2px solid var(--accent)';
-        }
-
-        grid.appendChild(cell);
-      }
-    }
-
-    const num = document.createElement('div');
-    num.className = 'genko-sheet-num';
-    num.textContent = `― ${sheetIdx + 1} ―`;
-
-    wrapper.appendChild(grid);
-    wrapper.appendChild(num);
-    area.appendChild(wrapper);
-  });
-}
-
-function focusHiddenInput() {
-  const inp = document.getElementById('genko-hidden-input');
-  if (inp) { inp.value = ''; inp.focus(); }
-}
-
-function onGenkoCompositionStart() {
-  genkoComposing = true;
-}
-
-function onGenkoCompositionEnd(e) {
-  genkoComposing = false;
-  genkoComposeBuf = '';
-  const composed = e.data || '';
-  if (composed) {
-    genkoText = genkoText.slice(0, genkoCaret) + composed + genkoText.slice(genkoCaret);
-    genkoCaret += composed.length;
   }
-  const inp = document.getElementById('genko-hidden-input');
-  if (inp) inp.value = '';
-  genkoSave();
-  genkoRender();
-}
 
-function onGenkoHiddenInput(e) {
-  if (genkoComposing) {
-    genkoComposeBuf = e.target.value;
-    genkoRender();
-    return;
-  }
-  const val = e.target.value;
-  if (!val) return;
-  genkoText = genkoText.slice(0, genkoCaret) + val + genkoText.slice(genkoCaret);
-  genkoCaret += val.length;
-  e.target.value = '';
-  genkoSave();
-  genkoRender();
-}
-
-function onGenkoKeydown(e) {
-  if (genkoComposing) return;
-  if (e.key === 'Backspace') {
-    e.preventDefault();
-    if (genkoCaret > 0) {
-      genkoText = genkoText.slice(0, genkoCaret - 1) + genkoText.slice(genkoCaret);
-      genkoCaret--;
-      genkoSave();
-      genkoRender();
+  if (focusLast) {
+    const inputs = area.querySelectorAll('.genko-input');
+    const last = inputs[inputs.length - 1];
+    if (last) {
+      last.focus();
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(last);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
     }
-  } else if (e.key === 'Delete') {
-    e.preventDefault();
-    if (genkoCaret < genkoText.length) {
-      genkoText = genkoText.slice(0, genkoCaret) + genkoText.slice(genkoCaret + 1);
-      genkoSave();
-      genkoRender();
-    }
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    genkoText = genkoText.slice(0, genkoCaret) + '\n' + genkoText.slice(genkoCaret);
-    genkoCaret++;
-    genkoSave();
-    genkoRender();
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    if (genkoCaret > 0) { genkoCaret--; genkoRender(); }
-  } else if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    if (genkoCaret < genkoText.length) { genkoCaret++; genkoRender(); }
-  } else if (e.key === 'Tab') {
-    e.preventDefault();
-    genkoText = genkoText.slice(0, genkoCaret) + '　' + genkoText.slice(genkoCaret);
-    genkoCaret++;
-    genkoSave();
-    genkoRender();
   }
 }
 
-function genkoSave() {
+function onGenkoInput(e) {
+  const area = document.getElementById('genko-area');
+  const inputs = area.querySelectorAll('.genko-input');
+  // 全シートのテキストを結合
+  let fullText = '';
+  inputs.forEach(inp => { fullText += inp.textContent; });
+
   const ch = state.chapters.find(c => c.id === state.activeChapter);
   if (ch) {
-    ch.content = genkoText;
+    ch.content = fullText;
     saveState();
     updateCharCount();
     updateTodayCount();
     checkAutoBackup();
+  }
+
+  // シートが満杯になったら次のシートを追加
+  const sheetIdx = parseInt(e.target.getAttribute('data-sheet'));
+  if (e.target.textContent.length >= GENKO_CHARS) {
+    genkoRender(false);
+    // 次シートにフォーカス
+    const newInputs = area.querySelectorAll('.genko-input');
+    if (newInputs[sheetIdx + 1]) {
+      newInputs[sheetIdx + 1].focus();
+    }
+  }
+}
+
+function onGenkoKeydown(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    document.execCommand('insertText', false, '　');
   }
 }
 
@@ -3039,18 +2983,22 @@ function loadChapter(id) {
   const ch = state.chapters.find(c => c.id === id);
   if (!ch) return;
   state.activeChapter = id;
-  genkoText = cleanContent(ch.content || '');
-  ch.content = genkoText;
-  genkoCaret = genkoText.length;
-  genkoRender();
+  const text = cleanContent(ch.content || '');
+  ch.content = text;
+  genkoRender(false);
+  // 最後のシートにフォーカス
+  setTimeout(() => {
+    const area = document.getElementById('genko-area');
+    if (!area) return;
+    const inputs = area.querySelectorAll('.genko-input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }, 100);
   updateCharCount();
   renderChapterList();
   drawerFilterTag = '__all__';
   if (document.getElementById('phrase-drawer').classList.contains('open')) renderPhraseDrawer();
   renderMemos();
   loadPlot(id);
-  // フォーカスを隠し入力に
-  setTimeout(focusHiddenInput, 100);
 }
 
 function onEditorInput() {}
@@ -3058,6 +3006,7 @@ function onEditorInput() {}
 function handleEditorKey(e) {
   if (e.key === 'Tab') { e.preventDefault(); }
 }
+
 
 
 </script>
